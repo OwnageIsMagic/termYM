@@ -1,0 +1,7 @@
+user search
+video search
+interactive search
+getTracksFromQueue
+getAutoTracks other (chart, mix, promo, album, etc)
+radio
+async player
