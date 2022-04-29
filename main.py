@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import sys
 import subprocess
 import argparse
@@ -415,13 +416,13 @@ def retry(func: 'Callable[[*Ts], T]', *args: '*Ts', **kwargs) -> Tuple[bool, Opt
     is_ym_error = False
     while error_count < MAX_ERRORS:
         try:
-            return True, func(*args, **kwargs)
+            return True, func(*args, **kwargs) # type: ignore
         except YMApiUnauthorized as e:
             print(' Error:', type(e).__name__, e, flush=True)
             return False, None
         except YandexMusicError as e:
             if e.__context__ is JSONDecodeError:
-                print(f'JSONDecodeError.doc ({type(e.doc).__name__})\n"{e.doc}"')
+                print(f'JSONDecodeError.doc ({type(e.__context__.doc).__name__})\n"{e.__context__.doc}"') # type: ignore
             print(' YandexMusicError:', type(e).__name__, e, flush=True)
             traceback.print_exc()
             error_count += 1
@@ -467,6 +468,8 @@ def get_cache_path_for_track(track: Track, cache_folder: Path):
 
 def download_track(track: Track, cache_folder: Path) -> Path:
     file_path = get_cache_path_for_track(track, cache_folder)
+    if (os.name == 'nt'):
+        file_path = '\\\\?\\' + os.path.normpath(file_path)
     assert track.file_size is None or track.file_size == 0 # just check
     if not file_path.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
