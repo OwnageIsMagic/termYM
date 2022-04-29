@@ -9,6 +9,7 @@ from time import sleep
 from textwrap import indent
 from pathlib import Path
 # from threading import
+from json.decoder import JSONDecodeError
 
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Final, Optional, Tuple, TypeVar, Callable, Union, List, cast
@@ -19,6 +20,7 @@ from yandex_music.feed.generated_playlist import GeneratedPlaylist
 from yandex_music.playlist.user import User
 from yandex_music import Client, TrackShort, SearchResult, Artist, Track, Playlist
 from yandex_music.video import Video
+from yandex_music.exceptions import Unauthorized as YMApiUnauthorized, YandexMusicError
 # from radio import Radio
 
 T = TypeVar('T')
@@ -337,7 +339,7 @@ def getAutoTracks(client: Client, playlist_name: str, playlist_type: str, show_a
             elif pl.id_for_from:
                 g = pl.id_for_from
 
-            print(f'{tab * i}"{pl.title}"{f" {g}" if g else ""} ({pl.uid}:{pl.kind})'
+            print(f'{tab * i}"{pl.title}"{f" {g}" if g else ""} ({pl.uid}:{pl.kind} {pl.modified.split("T")[0] if pl.modified else "???"})'
                   + f'\n{indent(pl.description.strip(), tab * (i + 1))}' if pl.description else '')
             assert pl.owner.uid == pl.uid # type: ignore
 
@@ -408,17 +410,31 @@ def slugify(value: str):
     return re.sub(r'[\x00-\x1F\x7F"*/:<>?|\\]', '_', value) # reserved chars
 
 
-def retry(func: 'Callable[[*Ts], T]', *args: '*Ts', **kwargs) -> T:
+def retry(func: 'Callable[[*Ts], T]', *args: '*Ts', **kwargs) -> Tuple[bool, Optional[T]]:
     error_count = 0
+    is_ym_error = False
     while error_count < MAX_ERRORS:
         try:
-            return func(*args, **kwargs)
-        except Exception:
-            # print('Error:', type(e).__name__, ' ', e)
+            return True, func(*args, **kwargs)
+        except YMApiUnauthorized as e:
+            print(' Error:', type(e).__name__, e, flush=True)
+            return False, None
+        except YandexMusicError as e:
+            if e.__context__ is JSONDecodeError:
+                print(f'JSONDecodeError.doc ({type(e.doc).__name__})\n"{e.doc}"')
+            print(' YandexMusicError:', type(e).__name__, e, flush=True)
+            traceback.print_exc()
+            error_count += 1
+            is_ym_error = True
+            sleep(3)
+        except Exception as e:
+            print(' Exception:', type(e).__name__, e, flush=True)
             traceback.print_exc()
             error_count += 1
             sleep(1)
     else:
+        if is_ym_error:
+            return False, None
         sys.exit(10)
 
 
@@ -430,12 +446,15 @@ def get_album_year(album: Album):
 
 
 def get_cache_path_for_track(track: Track, cache_folder: Path):
-    assert track.albums
+    #assert track.albums
     artist = track.artists[0] if track.artists \
         else SimpleNamespace(name='#_' + track.type if track.type else 'unknown', id=0)
-    album = track.albums[0]
+    album = track.albums[0] if track.albums \
+        else SimpleNamespace(id=0, version=None, track_position=None, title='')
     album_version = f' ({album.version})' if album.version and not album.version.isspace() else ''
-    album_year = get_album_year(album)
+    album_year = get_album_year(album) if not isinstance(album, SimpleNamespace) else 9999
+    if album_year == 9999:
+        album_year = ''
     track_version = f' ({track.version})' if track.version and not track.version.isspace() else ''
     track_pos = album.track_position
     track_pos = f'{track_pos.volume}-{track_pos.index}' if track_pos else ''
@@ -450,10 +469,11 @@ def download_track(track: Track, cache_folder: Path) -> Path:
     file_path = get_cache_path_for_track(track, cache_folder)
     assert track.file_size is None or track.file_size == 0 # just check
     if not file_path.exists():
-        print('Downloading...', end='')
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        retry(lambda x: track.download(x), file_path)
-        print('ok')
+        print('Downloading...', end='', flush=True) # flush before stderr in retry
+        isOk, _ = retry(lambda x: track.download(x), file_path)
+        if isOk:
+            print('ok')
     return file_path
 
 
@@ -508,7 +528,7 @@ def main():
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     Client.notice_displayed = True
-    client = Client.from_token(args.token, report_new_fields=True)
+    client = Client.from_token(args.token, report_new_fields=False)
 
     assert client.me and client.me.account
     acc = client.me.account
@@ -518,9 +538,10 @@ def main():
 
     permission_alerts = client.permission_alerts()
     if permission_alerts and permission_alerts.alerts:
-        print('PERMISSION_ALERTS:')
+        print('\n==================\nPERMISSION_ALERTS:')
         for a in permission_alerts.alerts:
             print(a)
+        print('==================')
 
     if args.playlist == 'playlist':
         total_tracks, tracks = getPlaylistTracks(client, args.playlist_name)
@@ -585,4 +606,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print('Cause:', type(e.__cause__).__name__, f'"{e.__cause__}"', flush=True)
+        print('Context:', type(e.__context__).__name__, f'"{e.__context__}"', flush=True)
+        print('Exception:', type(e).__name__, e, flush=True)
+        traceback.print_exc()
