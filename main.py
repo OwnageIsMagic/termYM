@@ -490,8 +490,9 @@ def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShor
 
         file_path = download_track(track, cache_folder)
 
-        player_cmd[-1] = str(file_path)
-        proc = subprocess.run(player_cmd, stderr=subprocess.DEVNULL)
+        # use relative path (file name) and change cwd to overcome Win MAX_PATH limitations
+        player_cmd[-1] = str(file_path.name)
+        proc = subprocess.run(player_cmd, stderr=subprocess.DEVNULL, cwd=file_path.parent)
         if not ignore_retcode:
             proc.check_returncode()
     except KeyboardInterrupt:
