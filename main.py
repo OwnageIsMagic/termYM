@@ -85,6 +85,8 @@ def handle_args():
                         help='player to use')
     parser.add_argument('--audio-player-arg', action='append', default=[],
                         help='args for --audio-player (can be specified multiple times)')
+    parser.add_argument('--ignore-retcode', action='store_true',
+                        help='ignore audio player return code')
     parser.add_argument('--print-args', action='store_true',
                         help='print arguments (including default values) and exit')
     args = parser.parse_args()
@@ -481,7 +483,7 @@ def download_track(track: Track, cache_folder: Path) -> Path:
 
 
 def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShort],
-               cache_folder: Path, player_cmd: List[str], show_id: bool):
+               cache_folder: Path, player_cmd: List[str], show_id: bool, ignore_retcode: bool):
     try:
         track = track_from_short(track_or_short)
         show_playing_track(i, total_tracks, track, show_id)
@@ -489,7 +491,9 @@ def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShor
         file_path = download_track(track, cache_folder)
 
         player_cmd[-1] = str(file_path)
-        subprocess.run(player_cmd, stderr=subprocess.DEVNULL)
+        proc = subprocess.run(player_cmd, stderr=subprocess.DEVNULL)
+        if not ignore_retcode:
+            proc.check_returncode()
     except KeyboardInterrupt:
         try:
             sleep(0.7)
@@ -605,7 +609,7 @@ def main():
             show_alice_shot(client, track_or_short)
 
         retry(play_track, i, total_tracks, track_or_short,
-              args.cache_folder, args.player_cmd, args.show_id)
+              args.cache_folder, args.player_cmd, args.show_id, args.ignore_retcode)
 
 
 if __name__ == '__main__':
