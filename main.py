@@ -191,14 +191,15 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         print(f'{cat.type}s: {cat.total} match(es)')
         cat_type = cat.type.replace('_', '-')
         for (i, r) in enumerate(cat.results):
-            print(f'{i + 1}.', end='')
+            print(f'{i + 1}.', end='')                                                     # TODO: maybe Protocol?
             if hasattr(r, 'type') and r.type and r.type != 'music' and r.type != cat_type: # type: ignore
                 print(f' ({r.type})', end='')                                              # type: ignore
             if hasattr(r, 'artists_name') and r.artists:                                   # type: ignore
                 print(f' {"|".join(r.artists_name())}', end='')                            # type: ignore
             if hasattr(r, 'albums') and r.albums:                                          # type: ignore
-                print(f' [{"|".join([(a.title or str(a.id)) if not a.version else f"{a.title}@{a.version}" for a in r.albums])}]', # type: ignore
-                      end='')
+                print(' [' + '|'.join([
+                      f'{a.title}@{a.version}' if a.version else a.title or str(a.id) for a in r.albums # type: ignore
+                      ]) + ']', end='')
             if hasattr(r, 'owner') and r.owner:                                            # type: ignore
                 print(f' {{{r.owner.login}}}', end='')                                     # type: ignore
             if cat_type != 'podcast':
@@ -209,7 +210,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             if hasattr(r, 'version') and r.version and not r.version.isspace():            # type: ignore
                 print(f'@{r.version}', end='')                                             # type: ignore
             if hasattr(r, 'duration_ms') and r.duration_ms:                                # type: ignore
-                print(f' {r.duration_ms // 1000 // 60}:{r.duration_ms % 60:02}', end='')   # type: ignore
+                print(duration_str(r.duration_ms), end='')                                 # type: ignore
             print() # new line
             if i >= 4: # 5 per category
                 break
@@ -287,10 +288,10 @@ def show_album(tracks):
     for (i, track) in enumerate(tracks):
         print(f'{i + 1:>2}.',
               f'{track.title}@{track.version}' if track.version else track.title,
-              f'{track.duration_ms // 1000 // 60}:{track.duration_ms % 60:02}' if track.duration_ms else '-:--')
+              duration_str(track.duration_ms))
 
 
-def getAutoTracks(client: Client, playlist_name: str, playlist_type: str, show_alice: bool) -> Tuple[int, List[TrackShort]]:
+def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tuple[int, List[TrackShort]]:
     if not playlist_name:
         print('playlist_name is not set. Assuming "playlistOfTheDay"')
         playlist_name = 'playlistOfTheDay'
@@ -343,9 +344,10 @@ def getAutoTracks(client: Client, playlist_name: str, playlist_type: str, show_a
             elif pl.id_for_from:
                 g = pl.id_for_from
 
-            print(f'{tab * i}"{pl.title}"{f" {g}" if g else ""} ({pl.uid}:{pl.kind} {pl.modified.split("T")[0] if pl.modified else "???"})'
+            print(f'{tab * i}"{pl.title}"{f" {g}" if g else ""}',
+                  f'({pl.uid}:{pl.kind} {pl.modified.split("T")[0] if pl.modified else "???"})'
                   + f'\n{indent(pl.description.strip(), tab * (i + 1))}' if pl.description else '')
-            assert pl.owner.uid == pl.uid # type: ignore
+            assert pl.owner and pl.owner.uid == pl.uid # just check
 
             if (genPl and genPl.type == playlist_name) or pl.id_for_from == playlist_name \
                 or (pl.title and playlist_name_icase in pl.title.casefold()):
@@ -371,7 +373,11 @@ def show_playing_playlist(playlist: Playlist, total_tracks: int):
     print(f'Playing {playlist.title}',
           f'({playlist.playlist_id} {playlist.modified.split("T")[0] if playlist.modified else "???"})',
           f'by {playlist.owner.login}.',
-          f'{total_tracks} track(s).')
+          f'{total_tracks} track(s) {duration_str(playlist.duration_ms)}.')
+
+
+def duration_str(duration_ms: Optional[int]):
+    return f'{duration_ms // 1000 // 60}:{duration_ms % 60:02}' if duration_ms else '-:--'
 
 
 def getPlaylistTracks(client: Client, playlist_name: str) -> Tuple[int, List[TrackShort]]:
@@ -396,6 +402,7 @@ def getPlaylistTracks(client: Client, playlist_name: str) -> Tuple[int, List[Tra
 def show_alice_shot(client: Client, track: Union[TrackShort, Track]):
     ev = client.after_track(track.track_id, '940441070:17870614')
     if not ev:
+        print('Can\'t fetch after_track')
         return
     for shot in ev.shots:
         d = shot.shot_data
@@ -512,13 +519,13 @@ def track_from_short(track_or_short: Union[Track, TrackShort]):
 def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool):
     assert track.albums
     track_type = f'({track.type}) ' if track.type and track.type != 'music' and track.type != 'podcast-episode' else ''
-    track_id = f'{"<" + track.track_id + ">":<20} ' if show_id else ''
-    print(f'{i + 1}/{total_tracks}:',
+    track_id = f'{track.track_id:<18} ' if show_id else ''
+    print(f'{i + 1:>2}/{total_tracks}:',
           track_id + track_type + # no space if omitted
           '|'.join(track.artists_name()),
           f"[{'|'.join((a.title or str(a.id)) if not a.version else f'{a.title}@{a.version}' for a in track.albums)}]",
           '~', track.title if not track.version else f'{track.title}@{track.version}',
-          f'{track.duration_ms // 1000 // 60}:{track.duration_ms % 60:02}' if track.duration_ms else '-:--')
+          duration_str(track.duration_ms))
 
 
 def main():
@@ -560,7 +567,7 @@ def main():
             client, args.playlist_name, args.search_type, args.search_x, args.search_no_correct)
 
     elif args.playlist == 'auto':
-        total_tracks, tracks = getAutoTracks(client, args.playlist_name, args.auto_type, args.alice)
+        total_tracks, tracks = getAutoTracks(client, args.playlist_name, args.auto_type)
 
     elif args.playlist == 'radio':
         print('Not implemented')
