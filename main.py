@@ -26,8 +26,8 @@ from yandex_music.exceptions import Unauthorized as YMApiUnauthorized, YandexMus
 
 T = TypeVar('T')
 if TYPE_CHECKING:
-    from typing_extensions import TypeVarTuple
-    Ts = TypeVarTuple('Ts')
+    from typing_extensions import ParamSpec
+    P = ParamSpec('P')
 
 MAX_ERRORS: Final = 3
 
@@ -414,32 +414,26 @@ def slugify(value: str):
     return re.sub(r'[\x00-\x1F\x7F"*/:<>?|\\]', '_', value) # reserved chars
 
 
-def retry(func: 'Callable[[*Ts], T]', *args: '*Ts', **kwargs) -> Tuple[bool, Optional[T]]:
+def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> T:
     error_count = 0
-    is_ym_error = False
     while error_count < MAX_ERRORS:
         try:
-            return True, func(*args, **kwargs) # type: ignore
-        except YMApiUnauthorized as e:
-            print(' Error:', type(e).__name__, e, flush=True)
-            return False, None
+            return func(*args, **kwargs)
         except YandexMusicError as e:
             if e.__context__ is JSONDecodeError:
-                print(f'JSONDecodeError.doc ({type(e.__context__.doc).__name__})\n"{e.__context__.doc}"') # type: ignore
-            print(' YandexMusicError:', type(e).__name__, e, flush=True)
+                json_err = cast(JSONDecodeError, e.__context__)
+                print(f' JSONDecodeError.doc: "{json_err.doc}"', flush=True)
+            # print(' YandexMusicError:', type(e).__name__, e, flush=True)
             traceback.print_exc()
             error_count += 1
-            is_ym_error = True
             sleep(3)
-        except Exception as e:
-            print(' Exception:', type(e).__name__, e, flush=True)
+        except Exception:
+            # print(' Exception:', type(e).__name__, e, flush=True)
             traceback.print_exc()
             error_count += 1
             sleep(1)
-    else:
-        if is_ym_error:
-            return False, None
-        sys.exit(10)
+
+    sys.exit(10)
 
 
 def get_album_year(album: Album):
@@ -477,9 +471,8 @@ def download_track(track: Track, cache_folder: Path) -> Path:
     if not file_path.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
         print('Downloading...', end='', flush=True) # flush before stderr in retry
-        isOk, _ = retry(lambda x: track.download(x), file_path)
-        if isOk:
-            print('ok')
+        retry(lambda x: track.download(x), file_path)
+        print('ok')
     return file_path
 
 
