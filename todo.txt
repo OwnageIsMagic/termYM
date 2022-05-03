@@ -8,3 +8,4 @@ async player
 color output
 alice audio
 likes
+send playing status
