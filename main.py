@@ -46,16 +46,16 @@ def handle_args() -> argparse.Namespace:
     auto__ = parser.add_argument_group('auto')
     auto__.add_argument('--auto-type', '-tt', choices={'personal-playlists', 'new-playlists', 'new-releases'},
                         default='personal-playlists',
-                        help='type of auto playlist.')
-    auto__.add_argument('--alice', action='store_true',
-                        help='show Alice shots.')
+                        help='type of auto playlist')
+    auto__.add_argument('--no-alice', dest='alice', action='store_false',
+                        help='don\'t show Alice shots')
 
     search = parser.add_argument_group('search')
     search.add_argument('--search-type', '-t', choices={'all', 'artist', 'a', 'user', 'u', 'album', 'b',
                         'playlist', 'p', 'track', 't', 'podcast', 'p', 'podcast_episode', 'pe', 'video', 'v'},
                         default='all',
                         help='type of search. При поиске type=all не возвращаются подкасты и эпизоды.'
-                        + ' Указывайте конкретный тип для поиска.')
+                        + ' Указывайте конкретный тип для поиска')
     search.add_argument('--search-x', '-x', type=int, default=1, metavar='X',
                         help='use specific search result')
     search.add_argument('--search-no-correct', action='store_true',
@@ -135,15 +135,11 @@ def handle_args() -> argparse.Namespace:
     elif args.search_type == 'v':
         args.search_type = 'video'
 
-    if args.alice:
-        if not args.playlist_name:
-            args.playlist_name = 'origin'
-        if args.mode != 'auto' or args.playlist_name != 'origin':
-            print('--alice can only be specified for "origin" auto-generated playlist')
-            sys.exit(2)
+    if args.mode != 'auto' or args.playlist_name != 'origin':
+        args.alice = False
 
     if args.mode == 'auto' and not args.playlist_name:
-        print('playlist_name is not set. Assuming "playlistOfTheDay"')
+        print('playlist_name is not set. Assuming "playlistOfTheDay".')
         args.playlist_name = 'playlistOfTheDay'
 
     if args.print_args:
@@ -652,5 +648,5 @@ if __name__ == '__main__':
     except Exception as e:
         print('Cause:', type(e.__cause__).__name__, f'"{e.__cause__}"', flush=True)
         print('Context:', type(e.__context__).__name__, f'"{e.__context__}"', flush=True)
-        print('Exception:', type(e).__name__, e, flush=True)
+        # print('Exception:', type(e).__name__, e, flush=True)
         traceback.print_exc()
