@@ -285,7 +285,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
 
 def show_playing_album(a: Album, total_tracks: int) -> None:
     print(f'Playing {a.title} ({a.id}) by {"|".join(a.artists_name())}.'
-          f' {total_tracks} track(s) {duration_str(a.duration_ms)}.')
+          f' {total_tracks} track{plural(total_tracks)} {duration_str(a.duration_ms)}.')
     if a.short_description:
         print(a.short_description)
     if a.description:
@@ -409,9 +409,13 @@ def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
     print(f'Playing {playlist.title}',
           f'({playlist.playlist_id} {playlist.modified.split("T")[0] if playlist.modified else "???"})',
           f'by {playlist.owner.login}.',
-          f'{total_tracks} track(s) {duration_str(playlist.duration_ms)}.')
+          f'{total_tracks} track{plural(total_tracks)} {duration_str(playlist.duration_ms)}.')
     if playlist.description:
         print(playlist.description)
+
+
+def plural(count: int) -> str:
+    return 's' if count != 1 else ''
 
 
 def duration_str(duration_ms: Optional[int]) -> str:
@@ -608,7 +612,7 @@ def main() -> None:
         assert tracks_list
         tracks = tracks_list.tracks
         total_tracks = len(tracks)
-        print(f'Playing liked tracks. {total_tracks} track(s).')
+        print(f'Playing liked tracks. {total_tracks} track{plural(total_tracks)}.')
 
     elif args.mode == 'search':
         total_tracks, tracks = getSearchTracks(
