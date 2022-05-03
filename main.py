@@ -31,13 +31,14 @@ if TYPE_CHECKING:
 
 MAX_ERRORS: Final = 3
 
+
 def handle_args() -> argparse.Namespace:
     DEFAULT_CACHE_FOLDER = Path(__file__).resolve().parent / '.YMcache'
     CONFIG_FILE_NAME = 'config'
 
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices={'likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
-                                             'radio', 'r', 'queue', 'q', 'id'},
+                                         'radio', 'r', 'queue', 'q', 'id'},
                         help='operation mode')
     parser.add_argument('playlist_name', nargs='?',
                         help='name of playlist or search term')
@@ -92,7 +93,7 @@ def handle_args() -> argparse.Namespace:
                         help='print arguments (including default values) and exit')
     args = parser.parse_args()
 
-    if args.audio_player is parser.get_default('audio_player')\
+    if args.audio_player is parser.get_default('audio_player') \
             and args.audio_player_arg is parser.get_default('audio_player_arg'):
         args.audio_player_arg = ['-I', 'dummy', '--play-and-exit', '--quiet']
 
@@ -162,11 +163,11 @@ def handle_args() -> argparse.Namespace:
     return args
 
 
-def flatten(inp : List[List[T]]) -> List[T]:
-     res: List[T] = []
-     for l in inp:
-         res.extend(l)
-     return res
+def flatten(inp: List[List[T]]) -> List[T]:
+    res: List[T] = []
+    for l in inp:
+        res.extend(l)
+    return res
 
 
 def getTracksFromQueue() -> Tuple[int, List[TrackShort]]:
@@ -182,11 +183,11 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         print('Specify search term (playlist-name)')
         sys.exit(1)
     search = client.search(playlist_name, playlist_in_best=False,
-                  nocorrect=search_no_correct, type_=search_type)
+                           nocorrect=search_no_correct, type_=search_type)
     assert search
     print('Search results for',
-          f'"{search.text}"' if not search.misspell_corrected \
-            else f'"{search.misspell_original}"=>"{search.misspell_result}"')
+          f'"{search.text}"' if not search.misspell_corrected
+          else f'"{search.misspell_original}"=>"{search.misspell_result}"')
 
     for cat in [search.tracks, search.artists, search.albums, search.playlists, search.videos,
                 search.users, search.podcasts, search.podcast_episodes]:
@@ -219,7 +220,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             if i >= 4: # 5 per category
                 break
 
-    if search.best: #search_type == 'all':
+    if search.best:  # search_type == 'all':
         res = search.best.result
         restype = search.best.type
         print(f'Best match: [{restype}]')
@@ -266,7 +267,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         total_tracks = res.track_count if res.track_count else len(tracks)
         show_playing_playlist(res, total_tracks)
 
-    elif restype == 'user': # TODO
+    elif restype == 'user':  # TODO
         res = cast(User, res)
         print('Not implemented', res)
         sys.exit(3)
@@ -276,13 +277,14 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         print('Not implemented', res)
         sys.exit(3)
 
-    else: # unreachable
+    else:  # unreachable
         print('Not implemented', res)
         sys.exit(3)
 
     # tracks tracks_download_info
 
     return total_tracks, tracks
+
 
 def show_playing_album(a: Album, total_tracks: int) -> None:
     print(f'Playing {a.title} ({a.id}) by {"|".join(a.artists_name())}. {total_tracks} track(s).')
@@ -298,20 +300,22 @@ def show_album(tracks: List[Track]) -> None:
 def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tuple[int, List[TrackShort]]:
     if playlist_type == 'personal-playlists':
         # well-known names
-        if   playlist_name == 'playlistOfTheDay':
-            id ='503646255:26954868'
+        if playlist_name == 'playlistOfTheDay':
+            id = '503646255:26954868'
         elif playlist_name == 'origin':
-            id ='940441070:17870614'
+            id = '940441070:17870614'
         elif playlist_name == 'neverHeard':
-            id ='692528232:114169885'
+            id = '692528232:114169885'
         elif playlist_name == 'recentTracks':
-            id ='692529388:111791060'
+            id = '692529388:111791060'
         elif playlist_name == 'missedLikes':
-            id ='460141773:108134812'
+            id = '460141773:108134812'
         elif playlist_name == 'kinopoisk':
-            id ='1087766963:2441326'
-        else: id = None
-    else: id = None
+            id = '1087766963:2441326'
+        else:
+            id = None
+    else:
+        id = None
 
     if id is not None:
         playlist = client.playlists_list(id)[0]
@@ -335,8 +339,8 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
     # new-playlists: List[Playlist]
     # personal-playlists: List[GeneratedPlaylist]
     # 'personal-playlists, new-releases, new-playlists'
-    landings = client.landing(playlist_type)  # same as 'personalplaylists'
-    # landings = client.landing('personal-playlists') # same as 'personalplaylists'
+    landings = client.landing(playlist_type)
+    # landings = client.landing('personal-playlists')  # same as 'personalplaylists'
     assert landings
     playlist: Optional[Playlist] = None
     playlist_name_icase = playlist_name.casefold()
@@ -361,7 +365,7 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
                 i += 1
                 # sanity check
                 assert genPl.type == pl.generated_playlist_type or pl.generated_playlist_type is None
-                assert genPl.ready # just check
+                assert genPl.ready  # just check
                 assert not genPl.description
             elif e.type == 'playlist':
                 pl = cast(Playlist, e.data)
@@ -369,7 +373,7 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
                 print('Not implemented')
                 sys.exit(3)
 
-            assert not pl.type and not pl.playlist_uuid # just check
+            assert not pl.type and not pl.playlist_uuid  # just check
             assert not pl.dummy_description and not pl.dummy_page_description
             assert not pl.og_data
 
@@ -382,10 +386,10 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
             print(f'{tab * i}"{pl.title}"{f" {g}" if g else ""}',
                   f'({pl.uid}:{pl.kind} {pl.modified.split("T")[0] if pl.modified else "???"})'
                   + f'\n{indent(pl.description.strip(), tab * (i + 1))}' if pl.description else '')
-            assert pl.owner and pl.owner.uid == pl.uid # just check
+            assert pl.owner and pl.owner.uid == pl.uid  # just check
 
             if (genPl and genPl.type == playlist_name) or pl.id_for_from == playlist_name \
-                or (pl.title and playlist_name_icase in pl.title.casefold()):
+                    or (pl.title and playlist_name_icase in pl.title.casefold()):
                 playlist = pl
 
     if playlist is None:
@@ -393,6 +397,7 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
         sys.exit(1)
 
     return playlist
+
 
 def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
     assert playlist.owner
@@ -440,12 +445,12 @@ def show_alice_shot(client: Client, track: Union[TrackShort, Track]) -> None:
 
 
 def slugify(value: str) -> str:
-    value = unicodedata.normalize('NFKC', value) # normalized combined form
+    value = unicodedata.normalize('NFKC', value)  # normalized combined form
     value = value.strip()
-    value = re.sub(r'\s+', ' ', value) # collapse inner whitespace
+    value = re.sub(r'\s+', ' ', value)  # collapse inner whitespace
     value = re.sub(r'^(\s*(?:CON|CONIN\$|CONOUT\$|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\s*(?:\..*)?)$',
-        r'_\1', value, flags=re.IGNORECASE) # common special names
-    return re.sub(r'[\x00-\x1F\x7F"*/:<>?|\\]', '_', value) # reserved chars
+                   r'_\1', value, flags=re.IGNORECASE)  # common special names
+    return re.sub(r'[\x00-\x1F\x7F"*/:<>?|\\]', '_', value)  # reserved chars
 
 
 def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> T:
@@ -501,10 +506,10 @@ def download_track(track: Track, cache_folder: Path) -> Path:
     file_path = get_cache_path_for_track(track, cache_folder)
     if (os.name == 'nt'):
         file_path = Path('\\\\?\\' + os.path.normpath(file_path))
-    assert track.file_size is None or track.file_size == 0 # just check
+    assert track.file_size is None or track.file_size == 0  # just check
     if not file_path.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        print('Downloading...', end='', flush=True) # flush before stderr in retry
+        print('Downloading...', end='', flush=True)  # flush before stderr in retry
         retry(lambda x: track.download(x), file_path)
         print('ok')
     return file_path
@@ -548,7 +553,7 @@ def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool) -
     track_type = f'({track.type}) ' if track.type and track.type != 'music' and track.type != 'podcast-episode' else ''
     track_id = f'{track.track_id:<18} ' if show_id else ''
     print(f'{i + 1:>2}/{total_tracks}:',
-          track_id + track_type + # no space if omitted
+          track_id + track_type +  # no space if omitted
           '|'.join(track.artists_name()),
           f"[{'|'.join((a.title or str(a.id)) if not a.version else f'{a.title}@{a.version}' for a in track.albums)}]",
           '~', track.title if not track.version else f'{track.title}@{track.version}',
@@ -613,7 +618,7 @@ def main() -> None:
         tracks = client.tracks(args.playlist_name.split(','))
         total_tracks = len(tracks)
 
-    else: # unreachable
+    else:  # unreachable
         sys.exit(3)
 
     if args.shuffle:
