@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 MAX_ERRORS: Final = 3
 
-def handle_args():
+def handle_args() -> argparse.Namespace:
     DEFAULT_CACHE_FOLDER = Path(__file__).resolve().parent / '.YMcache'
     CONFIG_FILE_NAME = 'config'
 
@@ -284,11 +284,11 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
 
     return total_tracks, tracks
 
-def show_playing_album(res, total_tracks):
-    print(f'Playing {res.title} ({res.id}) by {"|".join(res.artists_name())}. {total_tracks} track(s).')
+def show_playing_album(a: Album, total_tracks: int) -> None:
+    print(f'Playing {a.title} ({a.id}) by {"|".join(a.artists_name())}. {total_tracks} track(s).')
 
 
-def show_album(tracks):
+def show_album(tracks: List[Track]) -> None:
     for (i, track) in enumerate(tracks):
         print(f'{i + 1:>2}.',
               f'{track.title}@{track.version}' if track.version else track.title,
@@ -369,15 +369,16 @@ def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tup
 
     return total_tracks, tracks
 
-def show_playing_playlist(playlist: Playlist, total_tracks: int):
+def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
     assert playlist.owner
+
     print(f'Playing {playlist.title}',
           f'({playlist.playlist_id} {playlist.modified.split("T")[0] if playlist.modified else "???"})',
           f'by {playlist.owner.login}.',
           f'{total_tracks} track(s) {duration_str(playlist.duration_ms)}.')
 
 
-def duration_str(duration_ms: Optional[int]):
+def duration_str(duration_ms: Optional[int]) -> str:
     return f'{duration_ms // 1000 // 60}:{duration_ms % 60:02}' if duration_ms else '-:--'
 
 
@@ -400,7 +401,7 @@ def getPlaylistTracks(client: Client, playlist_name: str) -> Tuple[int, List[Tra
     return total_tracks, tracks
 
 
-def show_alice_shot(client: Client, track: Union[TrackShort, Track]):
+def show_alice_shot(client: Client, track: Union[TrackShort, Track]) -> None:
     ev = client.after_track(track.track_id, '940441070:17870614')
     if not ev:
         print('Can\'t fetch after_track')
@@ -413,7 +414,7 @@ def show_alice_shot(client: Client, track: Union[TrackShort, Track]):
         print(ev.event_id, d.shot_text)
 
 
-def slugify(value: str):
+def slugify(value: str) -> str:
     value = unicodedata.normalize('NFKC', value) # normalized combined form
     value = value.strip()
     value = re.sub(r'\s+', ' ', value) # collapse inner whitespace
@@ -444,14 +445,14 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> T:
     sys.exit(10)
 
 
-def get_album_year(album: Album):
+def get_album_year(album: Album) -> int:
     y1 = int(album.release_date[:4]) if album.release_date else 9999
     y2 = int(album.original_release_year) if album.original_release_year else 9999
     y3 = album.year or 9999
     return min(y1, y2, y3)
 
 
-def get_cache_path_for_track(track: Track, cache_folder: Path):
+def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
     #assert track.albums
     artist = track.artists[0] if track.artists \
         else SimpleNamespace(name='#_' + track.type if track.type else 'unknown', id=0)
@@ -485,7 +486,7 @@ def download_track(track: Track, cache_folder: Path) -> Path:
 
 
 def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShort],
-               cache_folder: Path, player_cmd: List[str], show_id: bool, ignore_retcode: bool):
+               cache_folder: Path, player_cmd: List[str], show_id: bool, ignore_retcode: bool) -> None:
     try:
         track = track_from_short(track_or_short)
         show_playing_track(i, total_tracks, track, show_id)
@@ -505,7 +506,7 @@ def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShor
             sys.exit()
 
 
-def track_from_short(track_or_short: Union[Track, TrackShort]):
+def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
     if isinstance(track_or_short, Track):
         track = track_or_short
     else:
@@ -517,7 +518,7 @@ def track_from_short(track_or_short: Union[Track, TrackShort]):
     return track
 
 
-def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool):
+def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool) -> None:
     assert track.albums
     track_type = f'({track.type}) ' if track.type and track.type != 'music' and track.type != 'podcast-episode' else ''
     track_id = f'{track.track_id:<18} ' if show_id else ''
@@ -529,7 +530,7 @@ def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool):
           duration_str(track.duration_ms))
 
 
-def main():
+def main() -> None:
     args = handle_args()
 
     if args.log_api:
