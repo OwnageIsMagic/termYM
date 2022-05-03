@@ -52,7 +52,7 @@ def handle_args() -> argparse.Namespace:
 
     search = parser.add_argument_group('search')
     search.add_argument('--search-type', '-t', choices={'all', 'artist', 'a', 'user', 'u', 'album', 'b',
-                        'playlist', 'p', 'track', 't', 'podcast', 'p', 'podcast_episode', 'pe', 'video', 'v'},
+                        'playlist', 'p', 'track', 't', 'podcast', 'c', 'podcast_episode', 'ce', 'video', 'v'},
                         default='all',
                         help='type of search. При поиске type=all не возвращаются подкасты и эпизоды.'
                         + ' Указывайте конкретный тип для поиска')
@@ -128,9 +128,9 @@ def handle_args() -> argparse.Namespace:
         args.search_type = 'playlist'
     elif args.search_type == 't':
         args.search_type = 'track'
-    elif args.search_type == 'p':
+    elif args.search_type == 'c':
         args.search_type = 'podcast'
-    elif args.search_type == 'pe':
+    elif args.search_type == 'ce':
         args.search_type = 'podcast_episode'
     elif args.search_type == 'v':
         args.search_type = 'video'
