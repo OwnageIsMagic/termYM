@@ -296,7 +296,41 @@ def show_album(tracks: List[Track]) -> None:
 
 
 def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tuple[int, List[TrackShort]]:
+    if playlist_type == 'personal-playlists':
+        # well-known names
+        if   playlist_name == 'playlistOfTheDay':
+            id ='503646255:26954868'
+        elif playlist_name == 'origin':
+            id ='940441070:17870614'
+        elif playlist_name == 'neverHeard':
+            id ='692528232:114169885'
+        elif playlist_name == 'recentTracks':
+            id ='692529388:111791060'
+        elif playlist_name == 'missedLikes':
+            id ='460141773:108134812'
+        elif playlist_name == 'kinopoisk':
+            id ='1087766963:2441326'
+        else: id = None
+    else: id = None
 
+    if id is not None:
+        playlist = client.playlists_list(id)[0]
+    else:
+        playlist = show_and_search_auto_blocks(client, playlist_name, playlist_type)
+
+    if playlist.generated_playlist_type == 'playlistOfTheDay':
+        assert playlist.play_counter
+        print(f'Playlist of the day streak: {playlist.play_counter.value}.',
+              f'Updated: {playlist.play_counter.updated}')
+
+    tracks = playlist.tracks if playlist.tracks else playlist.fetch_tracks()
+    total_tracks = playlist.track_count if playlist.track_count else len(tracks)
+    show_playing_playlist(playlist, total_tracks)
+
+    return total_tracks, tracks
+
+
+def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_type: str) -> Playlist:
     # new-releases: List[Album]
     # new-playlists: List[Playlist]
     # personal-playlists: List[GeneratedPlaylist]
@@ -358,16 +392,7 @@ def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tup
         print(f'auto playlist "{playlist_name}" not found')
         sys.exit(1)
 
-    if playlist.generated_playlist_type == 'playlistOfTheDay':
-        assert playlist.play_counter
-        print(f'Playlist of the day streak: {playlist.play_counter.value}.',
-              f'Updated: {playlist.play_counter.updated}')
-
-    tracks = playlist.tracks if playlist.tracks else playlist.fetch_tracks()
-    total_tracks = playlist.track_count if playlist.track_count else len(tracks)
-    show_playing_playlist(playlist, total_tracks)
-
-    return total_tracks, tracks
+    return playlist
 
 def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
     assert playlist.owner
