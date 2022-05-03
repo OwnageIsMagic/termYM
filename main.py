@@ -285,7 +285,11 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
 
 def show_playing_album(a: Album, total_tracks: int) -> None:
     print(f'Playing {a.title} ({a.id}) by {"|".join(a.artists_name())}.'
-    f' {total_tracks} track(s) {duration_str(a.duration_ms)}.')
+          f' {total_tracks} track(s) {duration_str(a.duration_ms)}.')
+    if a.short_description:
+        print(a.short_description)
+    if a.description:
+        print(a.description)
 
 
 def show_album(volumes: List[List[Track]]) -> None:
@@ -406,6 +410,8 @@ def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
           f'({playlist.playlist_id} {playlist.modified.split("T")[0] if playlist.modified else "???"})',
           f'by {playlist.owner.login}.',
           f'{total_tracks} track(s) {duration_str(playlist.duration_ms)}.')
+    if playlist.description:
+        print(playlist.description)
 
 
 def duration_str(duration_ms: Optional[int]) -> str:
@@ -566,6 +572,8 @@ def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool) -
           f"[{'|'.join((a.title or str(a.id)) if not a.version else f'{a.title} @ {a.version}' for a in track.albums)}]",
           '~', track.title if not track.version else f'{track.title} @ {track.version}',
           duration_str(track.duration_ms))
+    if track.short_description:
+        print(track.short_description)
 
 
 def main() -> None:
