@@ -33,6 +33,7 @@ MAX_ERRORS: Final = 3
 
 def handle_args():
     DEFAULT_CACHE_FOLDER = Path(__file__).resolve().parent / '.YMcache'
+    CONFIG_FILE_NAME = 'config'
 
     parser = argparse.ArgumentParser()
     parser.add_argument('playlist', choices={'likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
@@ -75,7 +76,7 @@ def handle_args():
                         help='print comma separated track_id list of playlist')
     parser.add_argument('--log-api', action='store_true',
                         help='log YM API requests')
-    parser.add_argument('--token', default=DEFAULT_CACHE_FOLDER / 'config',
+    parser.add_argument('--token', default=DEFAULT_CACHE_FOLDER / CONFIG_FILE_NAME,
                         help='YM API token as string or path to file')
     parser.add_argument('--no-save-token', action='store_true',
                         help='don\'t save token in cache folder')
@@ -144,9 +145,9 @@ def handle_args():
         print(args)
         sys.exit()
 
-    if type(args.token) is str and re.match(r'^[A-z0-9]{39}$', args.token):
+    if type(args.token) is str and re.match(r'^[A-Za-z0-9_]{39}$', args.token):
         if not args.no_save_token:
-            args.cache_folder.write_text(args.token)
+            (args.cache_folder / CONFIG_FILE_NAME).write_text(args.token)
     else:
         try:
             args.token = Path(args.token).read_text()
