@@ -5,3 +5,6 @@ getTracksFromQueue
 getAutoTracks other (chart, mix, promo, album, etc)
 radio
 async player
+color output
+alice audio
+likes
