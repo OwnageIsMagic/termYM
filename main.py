@@ -36,9 +36,9 @@ def handle_args():
     CONFIG_FILE_NAME = 'config'
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('playlist', choices={'likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
+    parser.add_argument('mode', choices={'likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
                                              'radio', 'r', 'queue', 'q', 'id'},
-                        help='playlist type')
+                        help='operation mode')
     parser.add_argument('playlist_name', nargs='?',
                         help='name of playlist or search term')
 
@@ -104,18 +104,18 @@ def handle_args():
         args.skip = sys.maxsize
         args.show_skiped = True
 
-    if args.playlist == 'l':
-        args.playlist = 'likes'
-    elif args.playlist == 'p':
-        args.playlist = 'playlist'
-    elif args.playlist == 's':
-        args.playlist = 'search'
-    elif args.playlist == 'a':
-        args.playlist = 'auto'
-    elif args.playlist == 'r':
-        args.playlist = 'radio'
-    elif args.playlist == 'q':
-        args.playlist = 'queue'
+    if args.mode == 'l':
+        args.mode = 'likes'
+    elif args.mode == 'p':
+        args.mode = 'playlist'
+    elif args.mode == 's':
+        args.mode = 'search'
+    elif args.mode == 'a':
+        args.mode = 'auto'
+    elif args.mode == 'r':
+        args.mode = 'radio'
+    elif args.mode == 'q':
+        args.mode = 'queue'
 
     if args.search_type == 'a':
         args.search_type = 'artist'
@@ -552,34 +552,34 @@ def main():
             print(a)
         print('==================')
 
-    if args.playlist == 'playlist':
+    if args.mode == 'playlist':
         total_tracks, tracks = getPlaylistTracks(client, args.playlist_name)
 
-    elif args.playlist == 'likes':
+    elif args.mode == 'likes':
         tracks_list = client.users_likes_tracks()
         assert tracks_list
         tracks = tracks_list.tracks
         total_tracks = len(tracks)
         print(f'Playing liked tracks. {total_tracks} track(s).')
 
-    elif args.playlist == 'search':
+    elif args.mode == 'search':
         total_tracks, tracks = getSearchTracks(
             client, args.playlist_name, args.search_type, args.search_x, args.search_no_correct)
 
-    elif args.playlist == 'auto':
+    elif args.mode == 'auto':
         total_tracks, tracks = getAutoTracks(client, args.playlist_name, args.auto_type)
 
-    elif args.playlist == 'radio':
+    elif args.mode == 'radio':
         print('Not implemented')
         # TODO: use examples\Radio
         # rotor_stations_dashboard rotor_stations_list rotor_station_tracks
         sys.exit(3)
 
-    elif args.playlist == 'queue':
+    elif args.mode == 'queue':
         # queue queues_list
         total_tracks, tracks = getTracksFromQueue()
 
-    elif args.playlist == 'id':
+    elif args.mode == 'id':
         if not args.playlist_name:
             print('Specify comma (",") separated track id list')
             sys.exit(1)
