@@ -137,9 +137,13 @@ def handle_args():
     if args.alice:
         if not args.playlist_name:
             args.playlist_name = 'origin'
-        if args.playlist_name != 'origin':
+        if args.mode != 'auto' or args.playlist_name != 'origin':
             print('--alice can only be specified for "origin" auto-generated playlist')
             sys.exit(2)
+
+    if args.mode == 'auto' and not args.playlist_name:
+        print('playlist_name is not set. Assuming "playlistOfTheDay"')
+        args.playlist_name = 'playlistOfTheDay'
 
     if args.print_args:
         print(args)
@@ -292,9 +296,6 @@ def show_album(tracks):
 
 
 def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tuple[int, List[TrackShort]]:
-    if not playlist_name:
-        print('playlist_name is not set. Assuming "playlistOfTheDay"')
-        playlist_name = 'playlistOfTheDay'
 
     # new-releases: List[Album]
     # new-playlists: List[Playlist]
