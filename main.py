@@ -46,7 +46,7 @@ def handle_args() -> argparse.Namespace:
     auto__ = parser.add_argument_group('auto')
     auto__.add_argument('--auto-type', '-tt', choices={'personal-playlists', 'new-playlists', 'new-releases'},
                         default='personal-playlists',
-                        help='type of auto playlist')
+                        help='type of auto playlist. Default: personal-playlists')
     auto__.add_argument('--no-alice', dest='alice', action='store_false',
                         help='don\'t show Alice shots')
 
@@ -54,8 +54,8 @@ def handle_args() -> argparse.Namespace:
     search.add_argument('--search-type', '-t', choices={'all', 'artist', 'a', 'user', 'u', 'album', 'b',
                         'playlist', 'p', 'track', 't', 'podcast', 'c', 'podcast_episode', 'ce', 'video', 'v'},
                         default='all',
-                        help='type of search. При поиске type=all не возвращаются подкасты и эпизоды.'
-                        + ' Указывайте конкретный тип для поиска')
+                        help='type of search. Default: all. При поиске type=all не возвращаются подкасты и эпизоды.'
+                        ' Указывайте конкретный тип для поиска')
     search.add_argument('--search-x', '-x', type=int, default=1, metavar='X',
                         help='use specific search result')
     search.add_argument('--search-no-correct', action='store_true',
