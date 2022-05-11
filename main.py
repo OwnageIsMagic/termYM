@@ -522,8 +522,9 @@ def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
 
 def download_track(track: Track, cache_folder: Path) -> Path:
     file_path = get_cache_path_for_track(track, cache_folder)
-    if (os.name == 'nt'):
-        file_path = Path('\\\\?\\' + os.path.normpath(file_path))
+    # vlc doesn't recognize \\?\ prefix :(
+    # if (os.name == 'nt'):
+    #     file_path = Path('\\\\?\\' + os.path.normpath(file_path))
     assert track.file_size is None or track.file_size == 0  # just check
     if not file_path.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -541,11 +542,11 @@ def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShor
 
         file_path = download_track(track, cache_folder)
 
-        # use relative path (file name) and change cwd to overcome Win MAX_PATH limitations
-        player_cmd[-1] = str(file_path.name)
-        proc = subprocess.run(player_cmd, stderr=subprocess.DEVNULL, cwd=file_path.parent)
+        player_cmd[-1] = str(file_path)
+        proc = subprocess.run(player_cmd, stderr=subprocess.DEVNULL)
         if not ignore_retcode:
             proc.check_returncode()
+
     except KeyboardInterrupt:
         try:
             sleep(0.7)
