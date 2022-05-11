@@ -83,7 +83,7 @@ def handle_args() -> argparse.Namespace:
                         help='don\'t save token in cache folder')
     parser.add_argument('--cache-folder', type=Path, default=DEFAULT_CACHE_FOLDER,
                         help='congig and cached tracks folder')
-    parser.add_argument('--audio-player', default='vlc',
+    parser.add_argument('--audio-player', default='D:\\Program Files\\VideoLAN\\VLC\\vlc.exe' if os.name == 'nt' else 'vlc',
                         help='player to use')
     parser.add_argument('--audio-player-arg', action='append', default=[],
                         help='args for --audio-player (can be specified multiple times)')
