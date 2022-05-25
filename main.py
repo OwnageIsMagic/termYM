@@ -9,11 +9,9 @@ import unicodedata
 from time import sleep
 from textwrap import indent
 from pathlib import Path
-# from threading import
-from json.decoder import JSONDecodeError
-
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Final, Optional, Tuple, TypeVar, Callable, Union, List, cast
+
 # sys.path.append('~/source/pyt/yandex-music-api/')
 # import yandex_music
 from yandex_music.album.album import Album
@@ -23,6 +21,7 @@ from yandex_music import Client, TrackShort, SearchResult, Artist, Track, Playli
 from yandex_music.video import Video
 from yandex_music.exceptions import Unauthorized as YMApiUnauthorized, YandexMusicError
 # from radio import Radio
+from json.decoder import JSONDecodeError
 
 T = TypeVar('T')
 if TYPE_CHECKING:
@@ -326,11 +325,6 @@ def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tup
     else:
         playlist = show_and_search_auto_blocks(client, playlist_name, playlist_type)
 
-    if playlist.generated_playlist_type == 'playlistOfTheDay':
-        assert playlist.play_counter
-        print(f'Playlist of the day streak: {playlist.play_counter.value}.',
-              f'Updated: {playlist.play_counter.updated}')
-
     tracks = playlist.tracks if playlist.tracks else playlist.fetch_tracks()
     total_tracks = playlist.track_count if playlist.track_count else len(tracks)
     show_playing_playlist(playlist, total_tracks)
@@ -413,6 +407,11 @@ def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
     if playlist.description:
         print(playlist.description)
 
+    if playlist.generated_playlist_type == 'playlistOfTheDay':
+        assert playlist.play_counter
+        print(f'Playlist of the day streak: {playlist.play_counter.value}.',
+              f'Updated: {playlist.play_counter.updated}')
+
 
 def plural(count: int) -> str:
     return 's' if count != 1 else ''
@@ -477,10 +476,10 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> T:
         try:
             return func(*args, **kwargs)
         except YandexMusicError as e:
+            # print(' YandexMusicError:', type(e).__name__, e, flush=True)
             if e.__context__ is JSONDecodeError:
                 json_err = cast(JSONDecodeError, e.__context__)
                 print(f' JSONDecodeError.doc: "{json_err.doc}"', flush=True)
-            # print(' YandexMusicError:', type(e).__name__, e, flush=True)
             traceback.print_exc()
             error_count += 1
             sleep(3)
@@ -511,8 +510,8 @@ def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
     if album_year == 9999:
         album_year = ''
     track_version = f' ({track.version})' if track.version and not track.version.isspace() else ''
-    track_pos = album.track_position
-    track_pos = f'{track_pos.volume}-{track_pos.index}' if track_pos else ''
+    tp = album.track_position
+    track_pos = f'{tp.volume}-{tp.index}' if tp else ''
 
     artist_dir = slugify(f'{artist.name}_{artist.id}')
     album_dir = slugify(f'{album_year}_{album.title}{album_version}_{album.id}')
@@ -636,7 +635,7 @@ def main() -> None:
         if not args.playlist_name:
             print('Specify comma (",") separated track id list')
             sys.exit(1)
-        tracks = client.tracks(args.playlist_name.split(','))
+        tracks = client.tracks(args.playlist_name.split(','))  # TODO: trim empty (,,)
         total_tracks = len(tracks)
 
     else:  # unreachable
@@ -663,7 +662,7 @@ def main() -> None:
         if args.alice:
             show_alice_shot(client, track_or_short)
 
-        retry(play_track, i, total_tracks, track_or_short,
+        play_track(i, total_tracks, track_or_short,
               args.cache_folder, args.player_cmd, args.show_id, args.ignore_retcode)
 
 

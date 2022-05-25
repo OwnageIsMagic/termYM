@@ -4,8 +4,9 @@ interactive search
 getTracksFromQueue
 getAutoTracks other (chart, mix, promo, album, etc)
 radio
-async player
+interactive player
 color output
 alice audio
 likes
 send playing status
+search and other places --show-id
