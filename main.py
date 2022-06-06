@@ -567,7 +567,7 @@ def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
 
 
 def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool) -> None:
-    assert track.albums
+    # assert track.albums
     track_type = f'({track.type}) ' if track.type and track.type != 'music' and track.type != 'podcast-episode' else ''
     track_id = f'{track.track_id:<18} ' if show_id else ''
     print(f'{i + 1:>2}/{total_tracks}:',
