@@ -35,6 +35,13 @@ def handle_args() -> argparse.Namespace:
     DEFAULT_CACHE_FOLDER = Path(__file__).resolve().parent / '.YMcache'
     CONFIG_FILE_NAME = 'config'
 
+    class BooleanAction(argparse.Action):
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            super(BooleanAction, self).__init__(option_strings, dest, nargs=0, **kwargs)
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            setattr(namespace, self.dest, False if option_string.startswith('--no-') else True)  # type: ignore
+
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices={'likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
                                          'radio', 'r', 'queue', 'q', 'id'},
@@ -45,7 +52,7 @@ def handle_args() -> argparse.Namespace:
     auto__ = parser.add_argument_group('auto')
     auto__.add_argument('--auto-type', '-tt', choices={'personal-playlists', 'new-playlists', 'new-releases'},
                         default='personal-playlists',
-                        help='type of auto playlist. Default: personal-playlists')
+                        help='type of auto playlist. Default: %(default)s')
     auto__.add_argument('--no-alice', dest='alice', action='store_false',
                         help='don\'t show Alice shots')
 
@@ -53,7 +60,8 @@ def handle_args() -> argparse.Namespace:
     search.add_argument('--search-type', '-t', choices={'all', 'artist', 'a', 'user', 'u', 'album', 'b',
                         'playlist', 'p', 'track', 't', 'podcast', 'c', 'podcast_episode', 'ce', 'video', 'v'},
                         default='all',
-                        help='type of search. Default: all. При поиске type=all не возвращаются подкасты и эпизоды.'
+                        help='type of search. Default: %(default)s.'
+                        ' При поиске type=all не возвращаются подкасты и эпизоды.'
                         ' Указывайте конкретный тип для поиска')
     search.add_argument('--search-x', '-x', type=int, default=1, metavar='X',
                         help='use specific search result')
@@ -73,7 +81,7 @@ def handle_args() -> argparse.Namespace:
     parser.add_argument('--show-id', action='store_true',
                         help='show track_id')
     parser.add_argument('--export-list', action='store_true',
-                        help='print comma separated track_id list of playlist')
+                        help='print comma separated track_id list of playlist and exit')
     parser.add_argument('--log-api', action='store_true',
                         help='log YM API requests')
     parser.add_argument('--token', default=DEFAULT_CACHE_FOLDER / CONFIG_FILE_NAME,
@@ -81,13 +89,17 @@ def handle_args() -> argparse.Namespace:
     parser.add_argument('--no-save-token', action='store_true',
                         help='don\'t save token in cache folder')
     parser.add_argument('--cache-folder', type=Path, default=DEFAULT_CACHE_FOLDER,
-                        help='congig and cached tracks folder')
-    parser.add_argument('--audio-player', default='D:\\Program Files\\VideoLAN\\VLC\\vlc.exe' if os.name == 'nt' else 'vlc',
+                        help='config and cached tracks folder')
+    parser.add_argument('--audio-player',
+                        default='D:\\Program Files\\VideoLAN\\VLC\\vlc.exe' if os.name == 'nt' else 'vlc',
                         help='player to use')
     parser.add_argument('--audio-player-arg', action='append', default=[],
                         help='args for --audio-player (can be specified multiple times)')
     parser.add_argument('--ignore-retcode', action='store_true',
                         help='ignore audio player return code')
+    parser.add_argument('--skip-long-path', '--no-skip-long-path', dest='skip_long_path', action=BooleanAction,
+                        default=True if os.name == 'nt' else False,
+                        help='skip track if file path is over MAX_PATH. Default on Windows')
     parser.add_argument('--print-args', action='store_true',
                         help='print arguments (including default values) and exit')
     args = parser.parse_args()
@@ -470,11 +482,14 @@ def slugify(value: str) -> str:
     return re.sub(r'[\x00-\x1F\x7F"*/:<>?|\\]', '_', value)  # reserved chars
 
 
-def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> T:
+def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Union[T, Exception]:
     error_count = 0
     while error_count < MAX_ERRORS:
         try:
             return func(*args, **kwargs)
+        except YMApiUnauthorized as e:
+            print(e)
+            return e
         except YandexMusicError as e:
             # print(' YandexMusicError:', type(e).__name__, e, flush=True)
             if e.__context__ is JSONDecodeError:
@@ -483,13 +498,13 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> T:
             traceback.print_exc()
             error_count += 1
             sleep(3)
-        except Exception:
+        except Exception as e:
             # print(' Exception:', type(e).__name__, e, flush=True)
             traceback.print_exc()
             error_count += 1
             sleep(1)
 
-    sys.exit(10)
+    return e  # type: ignore
 
 
 def get_album_year(album: Album) -> int:
@@ -519,8 +534,11 @@ def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
     return cache_folder / artist_dir / album_dir / filename
 
 
-def download_track(track: Track, cache_folder: Path) -> Path:
+def download_track(track: Track, cache_folder: Path, skip_long_path: bool) -> Optional[Path]:
     file_path = get_cache_path_for_track(track, cache_folder)
+    if skip_long_path and len(str(file_path)) > 255:
+        print('path is too long (MAX_PATH):', file_path)
+        return None
     # vlc doesn't recognize \\?\ prefix :(
     # if (os.name == 'nt'):
     #     file_path = Path('\\\\?\\' + os.path.normpath(file_path))
@@ -528,18 +546,25 @@ def download_track(track: Track, cache_folder: Path) -> Path:
     if not file_path.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
         print('Downloading...', end='', flush=True)  # flush before stderr in retry
-        retry(lambda x: track.download(x), file_path)
+        err = retry(lambda x: track.download(x), file_path)
+        if err:
+            print(f'Error while downloading track_id: {track.track_id}'
+            + f' real_id: {track.real_id}' if track.id != track.real_id else '')
+            return None
         print('ok')
     return file_path
 
 
 def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShort],
-               cache_folder: Path, player_cmd: List[str], show_id: bool, ignore_retcode: bool) -> None:
+               cache_folder: Path, player_cmd: List[str],
+               show_id: bool, ignore_retcode: bool, skip_long_path: bool) -> None:
     try:
         track = track_from_short(track_or_short)
         show_playing_track(i, total_tracks, track, show_id)
 
-        file_path = download_track(track, cache_folder)
+        file_path = download_track(track, cache_folder, skip_long_path)
+        if file_path == None:
+            return
 
         player_cmd[-1] = str(file_path)
         proc = subprocess.run(player_cmd, stderr=subprocess.DEVNULL)
@@ -663,14 +688,15 @@ def main() -> None:
             show_alice_shot(client, track_or_short)
 
         play_track(i, total_tracks, track_or_short,
-              args.cache_folder, args.player_cmd, args.show_id, args.ignore_retcode)
+              args.cache_folder, args.player_cmd, args.show_id, args.ignore_retcode, args.skip_long_path)
 
 
 if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        print('Cause:', type(e.__cause__).__name__, f'"{e.__cause__}"', flush=True)
-        print('Context:', type(e.__context__).__name__, f'"{e.__context__}"', flush=True)
+        print('Cause:', type(e.__cause__).__name__, f'"{e.__cause__}"', flush=True)        # type: ignore
+        print('Context:', type(e.__context__).__name__, f'"{e.__context__}"', flush=True)  # type: ignore
+        print()  # new line
         # print('Exception:', type(e).__name__, e, flush=True)
         traceback.print_exc()

@@ -9,4 +9,6 @@ color output
 alice audio
 likes
 send playing status
+last.fm
 search and other places --show-id
+args from config
