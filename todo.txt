@@ -4,11 +4,11 @@ interactive search
 getTracksFromQueue
 getAutoTracks other (chart, mix, promo, album, etc)
 radio
-interactive player
+interactive player (pause track)
 color output
 alice audio
 likes
 send playing status
 last.fm
-search and other places --show-id
+other places --show-id (search, album, ..)
 args from config

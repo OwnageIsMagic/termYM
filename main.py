@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+import asyncio
 import os
 import sys
-import subprocess
 import argparse
 import re
 import traceback
@@ -52,7 +52,7 @@ def handle_args() -> argparse.Namespace:
     auto__ = parser.add_argument_group('auto')
     auto__.add_argument('--auto-type', '-tt', choices={'personal-playlists', 'new-playlists', 'new-releases'},
                         default='personal-playlists',
-                        help='type of auto playlist. Default: %(default)s')
+                        help='type of auto playlist. Default: %(default)r')
     auto__.add_argument('--no-alice', dest='alice', action='store_false',
                         help='don\'t show Alice shots')
 
@@ -60,7 +60,7 @@ def handle_args() -> argparse.Namespace:
     search.add_argument('--search-type', '-t', choices={'all', 'artist', 'a', 'user', 'u', 'album', 'b',
                         'playlist', 'p', 'track', 't', 'podcast', 'c', 'podcast_episode', 'ce', 'video', 'v'},
                         default='all',
-                        help='type of search. Default: %(default)s.'
+                        help='type of search. Default: %(default)r'
                         ' При поиске type=all не возвращаются подкасты и эпизоды.'
                         ' Указывайте конкретный тип для поиска')
     search.add_argument('--search-x', '-x', type=int, default=1, metavar='X',
@@ -95,10 +95,11 @@ def handle_args() -> argparse.Namespace:
                         help='player to use')
     parser.add_argument('--audio-player-arg', action='append', default=[],
                         help='args for --audio-player (can be specified multiple times)')
-    parser.add_argument('--ignore-retcode', action='store_true',
-                        help='ignore audio player return code')
+    parser.add_argument('--ignore-retcode', '--no-ignore-retcode', dest='ignore_retcode', action=BooleanAction,
+                        default=os.name == 'nt',
+                        help='ignore audio player return code. Default on Windows')
     parser.add_argument('--skip-long-path', '--no-skip-long-path', dest='skip_long_path', action=BooleanAction,
-                        default=True if os.name == 'nt' else False,
+                        default=os.name == 'nt',
                         help='skip track if file path is over MAX_PATH. Default on Windows')
     parser.add_argument('--print-args', action='store_true',
                         help='print arguments (including default values) and exit')
@@ -157,14 +158,14 @@ def handle_args() -> argparse.Namespace:
         print(args)
         sys.exit()
 
-    if type(args.token) is str and re.match(r'^[A-Za-z0-9_]{39}$', args.token):
+    if type(args.token) is str and len(args.token) == 39 and re.match(r'^[A-Za-z0-9_]{39}$', args.token):
         if not args.no_save_token:
             (args.cache_folder / CONFIG_FILE_NAME).write_text(args.token)
     else:
         try:
             args.token = Path(args.token).read_text()
         except FileNotFoundError:
-            print('Config file not found. Use --token to create it')
+            print('Config file not found. Use --token to create it.')
             sys.exit(2)
 
     return args
@@ -488,7 +489,7 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Unio
         try:
             return func(*args, **kwargs)
         except YMApiUnauthorized as e:
-            print(e)
+            print(' ', type(e), e)
             return e
         except YandexMusicError as e:
             # print(' YandexMusicError:', type(e).__name__, e, flush=True)
@@ -555,28 +556,84 @@ def download_track(track: Track, cache_folder: Path, skip_long_path: bool) -> Op
     return file_path
 
 
-def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShort],
-               cache_folder: Path, player_cmd: List[str],
-               show_id: bool, ignore_retcode: bool, skip_long_path: bool) -> None:
+# class MyProtocol(asyncio.SubprocessProtocol):
+#     def __init__(self, exit_future: asyncio.Future[bool]) -> None:
+#         self.exit_future = exit_future
+
+#     def process_exited(self) -> None:
+#         if not self.exit_future.cancelled():
+#             self.exit_future.set_result(True)
+
+
+class AsyncInput:
+    __slots__ = ('_loop', '_inp_future')
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._loop = loop
+        self._inp_future = None
+
+    def readline(self) -> asyncio.Future[str]:
+        if not self._inp_future or self._inp_future.done():
+            self._inp_future = self._read_line_async()
+        return self._inp_future
+
+    def _read_line_async(self) -> asyncio.Future[str]:
+        return self._loop.run_in_executor(None, sys.stdin.readline)  # TODO: daemon thread
+
+
+async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShort],
+                    cache_folder: Path, player_cmd: List[str], async_input: AsyncInput,
+                    show_id: bool, ignore_retcode: bool, skip_long_path: bool) -> None:
+    track = track_from_short(track_or_short)
+    show_playing_track(i, total_tracks, track, show_id)
+
+    file_path = download_track(track, cache_folder, skip_long_path)
+    if file_path == None:
+        return
+
+    player_cmd[-1] = str(file_path)
+
+    # exit_future = asyncio.Future(loop=loop)
+    # proc, myprot = await loop.subprocess_exec(lambda: MyProtocol(exit_future), *player_cmd)
+    proc = await asyncio.create_subprocess_exec(*player_cmd)
+    exit_future = asyncio.create_task(proc.wait())
     try:
-        track = track_from_short(track_or_short)
-        show_playing_track(i, total_tracks, track, show_id)
+        inp_future = async_input.readline()
 
-        file_path = download_track(track, cache_folder, skip_long_path)
-        if file_path == None:
-            return
+        while (True):
+            done, pending = await asyncio.wait((exit_future, inp_future), return_when=asyncio.FIRST_COMPLETED)
+            assert len(done) == 1, done
 
-        player_cmd[-1] = str(file_path)
-        proc = subprocess.run(player_cmd, stderr=subprocess.DEVNULL)
+            f = done.pop()
+            if f == exit_future:
+                break
+            else:
+                assert f == inp_future
+                inp = cast(str, f.result()).strip()
+                if inp == 's' or inp == 'skip':
+                    break
+                elif inp == 'i' or inp == 'id':
+                    print('id', track.track_id)
+                elif inp == 'p' or inp == 'pause':
+                    print('pause after this track. Press Any key to continue...')
+                    await async_input.readline()
+                elif inp == 'x' or inp == 'exit':
+                    raise KeyboardInterrupt()  # TODO: cancelation
+                else:
+                    if inp != 'h' or inp != 'help':
+                        print('Unknown command:', inp)
+                    print('s: skip\ni: id\np: pause\nx: exit\nh: help')
+
+                inp_future = async_input.readline()
+
+    finally:
+        if not exit_future.done():
+            proc.terminate()
+            await exit_future
+
         if not ignore_retcode:
-            proc.check_returncode()
-
-    except KeyboardInterrupt:
-        try:
-            sleep(0.7)
-        except KeyboardInterrupt:
-            print('Goodbye.')
-            sys.exit()
+            rc = proc.returncode
+            if rc:
+                raise Exception(f'Command {player_cmd} returned non-zero exit status {rc}.')
 
 
 def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
@@ -677,6 +734,27 @@ def main() -> None:
         print(','.join(t.track_id for t in tracks))
         return
 
+    if args.skip == sys.maxsize:  # no need for async runtime
+        skip_all_loop(args, client, total_tracks, tracks)
+        return
+
+    asyncio.run(async_main(args, client, total_tracks, tracks))
+
+
+async def async_main(args: argparse.Namespace, client: Client,
+                    total_tracks: int, tracks: Union[List[TrackShort], List[Track]]) -> None:
+    my_input = AsyncInput(asyncio.get_event_loop())
+    try:
+        return await main_loop(args, client, total_tracks, tracks, my_input)
+    except (KeyboardInterrupt, asyncio.exceptions.CancelledError):
+        print('Goodbye.')
+    except BaseException as e:
+        handle_exception(e)
+
+
+async def main_loop(args: argparse.Namespace, client: Client,
+                    total_tracks: int, tracks: Union[List[TrackShort], List[Track]],
+                    async_input: AsyncInput) -> None:
     for (i, track_or_short) in enumerate(tracks):
         if args.skip > i:
             if args.show_skiped:
@@ -687,16 +765,33 @@ def main() -> None:
         if args.alice:
             show_alice_shot(client, track_or_short)
 
-        play_track(i, total_tracks, track_or_short,
-              args.cache_folder, args.player_cmd, args.show_id, args.ignore_retcode, args.skip_long_path)
+        await play_track(i, total_tracks, track_or_short,
+              args.cache_folder, args.player_cmd, async_input,
+              args.show_id, args.ignore_retcode, args.skip_long_path)
+
+
+def skip_all_loop(args: argparse.Namespace, client: Client,
+                  total_tracks: int, tracks: Union[List[TrackShort], List[Track]]) -> None:
+    for (i, track_or_short) in enumerate(tracks):
+        track = track_from_short(track_or_short)
+        show_playing_track(i, total_tracks, track, args.show_id)
+        if args.alice:
+            show_alice_shot(client, track_or_short)
+
+
+def handle_exception(e: BaseException) -> None:
+    print('Error:', type(e).__name__, f'"{e}"', flush=True)
+    print('Cause:', type(e.__cause__).__name__, f'"{e.__cause__}"', flush=True)        # type: ignore
+    print('Context:', type(e.__context__).__name__, f'"{e.__context__}"', flush=True)  # type: ignore
+    print()  # new line
+    # print('Exception:', type(e).__name__, e, flush=True)
+    traceback.print_exc()
 
 
 if __name__ == '__main__':
     try:
         main()
+    except (KeyboardInterrupt, asyncio.exceptions.CancelledError):
+        pass
     except Exception as e:
-        print('Cause:', type(e.__cause__).__name__, f'"{e.__cause__}"', flush=True)        # type: ignore
-        print('Context:', type(e.__context__).__name__, f'"{e.__context__}"', flush=True)  # type: ignore
-        print()  # new line
-        # print('Exception:', type(e).__name__, e, flush=True)
-        traceback.print_exc()
+        handle_exception(e)
