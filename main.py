@@ -101,6 +101,8 @@ def handle_args() -> argparse.Namespace:
     parser.add_argument('--skip-long-path', '--no-skip-long-path', dest='skip_long_path', action=BooleanAction,
                         default=os.name == 'nt',
                         help='skip track if file path is over MAX_PATH. Default on Windows')
+    parser.add_argument('--report-new-fields', action='store_true',
+                        help='report new fields from API')
     parser.add_argument('--print-args', action='store_true',
                         help='print arguments (including default values) and exit')
     args = parser.parse_args()
@@ -516,7 +518,6 @@ def get_album_year(album: Album) -> int:
 
 
 def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
-    #assert track.albums
     artist = track.artists[0] if track.artists \
         else SimpleNamespace(name='#_' + track.type if track.type else 'unknown', id=0)
     album = track.albums[0] if track.albums \
@@ -559,7 +560,7 @@ def download_track(track: Track, cache_folder: Path, skip_long_path: bool) -> Op
 # class MyProtocol(asyncio.SubprocessProtocol):
 #     def __init__(self, exit_future: asyncio.Future[bool]) -> None:
 #         self.exit_future = exit_future
-
+#
 #     def process_exited(self) -> None:
 #         if not self.exit_future.cancelled():
 #             self.exit_future.set_result(True)
@@ -616,15 +617,30 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                 elif inp == 'p' or inp == 'pause':
                     print('pause after this track. Press Any key to continue...')
                     await async_input.readline()
+                elif inp == 't' or inp == 'text':
+                    assert track.client
+                    sup = track.client.track_supplement(track.track_id)
+                    if sup and sup.description:
+                        print(sup.description)
+                    if not sup or not sup.lyrics:
+                        print('no lyrics')
+                        assert not track.lyrics_available  # just check
+                    else:
+                        assert track.lyrics_available  # just check
+                        lyrics = sup.lyrics
+                        if not lyrics.has_rights:
+                            print(f'lyrics.has_rights:', lyrics.has_rights)
+                        print(f'id: {lyrics.id} lang: {lyrics.text_language} '
+                              f'show_translation: {lyrics.show_translation} url: {lyrics.url}\n')
+                        print(lyrics.full_lyrics)
                 elif inp == 'x' or inp == 'exit':
                     raise KeyboardInterrupt()  # TODO: cancelation
                 else:
                     if inp != 'h' or inp != 'help':
                         print('Unknown command:', inp)
-                    print('s: skip\ni: id\np: pause\nx: exit\nh: help')
+                    print('s: skip\ni: id\np: pause\nt: text\nx: exit\nh: help')
 
                 inp_future = async_input.readline()
-
     finally:
         if not exit_future.done():
             proc.terminate()
@@ -671,7 +687,7 @@ def main() -> None:
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     Client.notice_displayed = True
-    client = Client.from_token(args.token, report_new_fields=False)
+    client = Client.from_token(args.token, report_new_fields=args.report_new_fields)
 
     assert client.me and client.me.account
     acc = client.me.account

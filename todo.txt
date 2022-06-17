@@ -10,5 +10,10 @@ alice audio
 likes
 send playing status
 last.fm
-other places --show-id (search, album, ..)
+other places --show-id (search, album, ...)
 args from config
+more context commands (like, album, full info, time, ...)
+show cover (libcaca or something more modern)
+playlist commands (show next N, skip N, prev, repeat, shuffle, export current playlist, ...)
+interactive mode
+check 'error' field
