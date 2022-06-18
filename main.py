@@ -229,12 +229,12 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             continue
         print(f'{cat.type}s: {cat.total} match(es)')
         cat_type = cat.type.replace('_', '-')
-        for (i, r) in enumerate(cat.results):
+        for (i, r) in enumerate(cat.results, 1):
             id = r.track_id if hasattr(r, 'track_id') else r.playlist_id if hasattr(       # type: ignore
                 r, 'playlist_id') else r.id                                                # type: ignore
             sid = f' {id:<18}' if show_id else ''
 
-            print(f'{i + 1}.{sid}', end='')                                                # TODO: maybe Protocol?
+            print(f'{i}.{sid}', end='')                                                # TODO: maybe Protocol?
             if hasattr(r, 'type') and r.type and r.type != 'music' and r.type != cat_type: # type: ignore
                 print(f' ({r.type})', end='')                                              # type: ignore
             if hasattr(r, 'artists_name') and r.artists:                                   # type: ignore
@@ -256,7 +256,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             if hasattr(r, 'duration_ms') and r.duration_ms:                                # type: ignore
                 print(' ' + duration_str(r.duration_ms), end='')                           # type: ignore
             print() # new line
-            if i >= count - 1:
+            if i >= count:
                 break
 
     if search.best:  # search_type == 'all':
@@ -275,7 +275,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
 
     if restype == 'artist':
         # artists artists_tracks artists_direct_albums
-        artisttracks = cast(Artist, res).get_tracks()
+        artisttracks = cast(Artist, res).get_tracks()  # get_albums() popular_tracks
         assert artisttracks
         tracks = artisttracks.tracks
         total_tracks = len(tracks)
@@ -283,12 +283,10 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
     elif restype == 'album' or restype == 'podcast':
         # albums albums_with_tracks
         res = cast(Album, res)
-        if res.volumes:
-            volumes = res.volumes
-        else:
+        if not res.volumes:
             res = res.with_tracks()
             assert res and res.volumes
-            volumes = res.volumes
+        volumes = res.volumes
 
         tracks = flatten(volumes)
         total_tracks = res.track_count or len(tracks)
@@ -335,10 +333,10 @@ def show_playing_album(a: Album, total_tracks: int) -> None:
 
 
 def show_album(volumes: List[List[Track]]) -> None:
-    for (iv, volume) in enumerate(volumes):
-        print(f'{iv + 1}.')
-        for (i, track) in enumerate(volume):
-            print(f'{i + 1:>2}.',
+    for (iv, volume) in enumerate(volumes, 1):
+        print(f'vol {iv}.')
+        for (i, track) in enumerate(volume, 1):
+            print(f'{i:>2}.',
                 f'{track.title} @ {track.version}' if track.version else track.title,
                 duration_str(track.duration_ms))
 
@@ -392,15 +390,15 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
         for e in block.entities:
             pl: Playlist
             genPl = None
-            i = 1
+            l = 1
             tab = '    '
             if e.type == 'personal-playlist':
                 genPl = cast(GeneratedPlaylist, e.data)
                 assert genPl.data, genPl
                 pl = genPl.data
 
-                print(f'{tab * i}{genPl.type}{" *" if genPl.notify else ""}')
-                i += 1
+                print(f'{tab * l}{genPl.type}{" *" if genPl.notify else ""}')
+                l += 1
                 # sanity check
                 assert genPl.type == pl.generated_playlist_type or pl.generated_playlist_type is None
                 assert genPl.ready  # just check
@@ -421,9 +419,9 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
             elif pl.id_for_from:
                 g = pl.id_for_from
 
-            print(f'{tab * i}"{pl.title}"{f" {g}" if g else ""}',
+            print(f'{tab * l}"{pl.title}"{f" {g}" if g else ""}',
                   f'({pl.uid}:{pl.kind} {pl.modified.split("T")[0] if pl.modified else "???"})'
-                  f'\n{indent(pl.description.strip(), tab * (i + 1))}' if pl.description else '')
+                  f'\n{indent(pl.description.strip(), tab * (l + 1))}' if pl.description else '')
             assert pl.owner and pl.owner.uid == pl.uid  # just check
 
             if (genPl and genPl.type == playlist_name) or pl.id_for_from == playlist_name \
@@ -449,7 +447,7 @@ def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
 
     if playlist.generated_playlist_type == 'playlistOfTheDay':
         assert playlist.play_counter
-        print(f'Playlist of the day streak: {playlist.play_counter.value}.',
+        print(f'Playlist of the day streak: {playlist.play_counter.value}. '
               f'Updated: {playlist.play_counter.updated}')
 
 
@@ -478,7 +476,7 @@ def getPlaylistTracks(client: Client, playlist_name: str) -> Tuple[int, List[Tra
             print('Specify playlist_name.', end='')
         else:
             print(f'Playlist "{playlist_name}" not found.', end='')
-        print(' Available:', list(p.title for p in user_playlists))
+        print(' Available:', [p.title for p in user_playlists])
         sys.exit(1)
 
     tracks = playlist.tracks or playlist.fetch_tracks()
@@ -489,7 +487,7 @@ def getPlaylistTracks(client: Client, playlist_name: str) -> Tuple[int, List[Tra
 
 
 def show_alice_shot(client: Client, track: Union[TrackShort, Track]) -> None:
-    ev = client.after_track(track.track_id, '940441070:17870614')
+    ev = client.after_track(track.track_id, '940441070:17870614')  # origin
     if not ev:
         print('Can\'t fetch after_track')
         return
@@ -543,15 +541,11 @@ def get_album_year(album: Album) -> int:
 
 
 def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
-    artist = track.artists[0] if track.artists \
-        else SimpleNamespace(id=0, name='#_' + (track.type or 'unknown'))
-    album = track.albums[0] if track.albums \
-        else SimpleNamespace(id=0, version=None, track_position=None, title='')
+    artist = track.artists[0] if track.artists else SimpleNamespace(id=0, name='#_' + (track.type or 'unknown'))
+    album = track.albums[0] if track.albums else SimpleNamespace(id=0, version=None, track_position=None, title='')
+
     album_version = f' ({album.version})' if album.version and not album.version.isspace() else ''
-    if isinstance(album, SimpleNamespace):
-        album_year = ''
-    else:
-        album_year = get_album_year(album)
+    album_year = get_album_year(album) if not isinstance(album, SimpleNamespace) else ''
 
     track_version = f' ({track.version})' if track.version and not track.version.isspace() else ''
     tp = album.track_position
@@ -700,11 +694,10 @@ def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
     return track
 
 
-def show_playing_track(i: int, total_tracks: int, track: Track, show_id: bool) -> None:
-    # assert track.albums
+def show_playing_track(n: int, total_tracks: int, track: Track, show_id: bool) -> None:
     track_type = f'({track.type}) ' if track.type and track.type != 'music' and track.type != 'podcast-episode' else ''
     track_id = f'{track.track_id:<18} ' if show_id else ''
-    print(f'{i + 1:>2}/{total_tracks}:',
+    print(f'{n:>2}/{total_tracks}:',
           track_id + track_type +  # no space if omitted
           '|'.join(track.artists_name()),
           f"[{'|'.join((a.title or str(a.id)) if not a.version else f'{a.title} @ {a.version}' for a in track.albums)}]",
@@ -770,7 +763,7 @@ def main() -> None:
         if not args.playlist_name:
             print('Specify comma (",") separated track id list')
             sys.exit(1)
-        tracks = client.tracks(args.playlist_name.split(','))  # TODO: trim empty (,,)
+        tracks = client.tracks([id for id in args.playlist_name.split(',') if len(id)])
         total_tracks = len(tracks)
 
     else:  # unreachable
@@ -808,8 +801,8 @@ async def async_main(args: argparse.Namespace, client: Client,
 async def main_loop(args: argparse.Namespace, client: Client,
                     total_tracks: int, tracks: Union[List[TrackShort], List[Track]],
                     async_input: AsyncInput) -> None:
-    for (i, track_or_short) in enumerate(tracks):
-        if args.skip > i:
+    for (i, track_or_short) in enumerate(tracks, 1):
+        if args.skip >= i:
             if args.show_skiped:
                 track = track_from_short(track_or_short)
                 show_playing_track(i, total_tracks, track, args.show_id)
@@ -825,7 +818,7 @@ async def main_loop(args: argparse.Namespace, client: Client,
 
 def skip_all_loop(args: argparse.Namespace, client: Client,
                   total_tracks: int, tracks: Union[List[TrackShort], List[Track]]) -> None:
-    for (i, track_or_short) in enumerate(tracks):
+    for (i, track_or_short) in enumerate(tracks, 1):
         track = track_from_short(track_or_short)
         show_playing_track(i, total_tracks, track, args.show_id)
         if args.alice:
