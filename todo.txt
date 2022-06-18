@@ -18,3 +18,4 @@ playlist commands (show next N, skip N, prev, repeat, shuffle, export current pl
 interactive mode (ncurses)
 check 'error' and 'reason' fields
 id mode other types
+sleep timer

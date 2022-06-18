@@ -10,11 +10,12 @@ from time import sleep
 from textwrap import indent
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Final, Optional, Tuple, TypeVar, Callable, Union, List, cast
+from typing import TYPE_CHECKING, Final, Optional, Tuple, TypeVar, Callable, Union, List, Dict, cast
 
 # sys.path.append('~/source/pyt/yandex-music-api/')
 # import yandex_music
 from yandex_music.album.album import Album
+from yandex_music.base import YandexMusicObject
 from yandex_music.feed.generated_playlist import GeneratedPlaylist
 from yandex_music.playlist.user import User
 from yandex_music import Client, TrackShort, SearchResult, Artist, Track, Playlist
@@ -180,6 +181,26 @@ def flatten(inp: List[List[T]]) -> List[T]:
     for l in inp:
         res.extend(l)
     return res
+
+
+def show_attributes(obj: Union[YandexMusicObject, List]) -> None:
+    from pprint import pprint
+
+    def attributes(obj: Union[YandexMusicObject, List], ignored = {
+            'available_for_mobile', 'available_for_premium_users', 'available',
+            'client', 'cover_uri', 'cover', 'download_info', 'og_image', 'preview_duration_ms', 'storage_dir'
+        }, types = (YandexMusicObject, list)) -> Union[List, Dict]:
+
+        if isinstance(obj, list):
+            return [v if not isinstance(v, types) else attributes(v) for v in obj]
+
+        return {
+            k: v if not isinstance(v, types) else attributes(v)
+                for k, v in vars(obj).items()
+                    if k[0] != '_' and k not in ignored and v  # ignore falsy values
+            }
+
+    pprint(attributes(obj))
 
 
 def getTracksFromQueue() -> Tuple[int, List[TrackShort]]:
@@ -620,12 +641,13 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                     break
                 elif inp == 'i' or inp == 'id':
                     print('id', track.track_id)
+
                 elif inp == 'p' or inp == 'pause':
                     print('pause after this track. Press Any key to continue...')
                     await async_input.readline()
+
                 elif inp == 't' or inp == 'text':
-                    assert track.client
-                    sup = track.client.track_supplement(track.track_id)
+                    sup = track.get_supplement()
                     if sup and sup.description:
                         print(sup.description)
                     if not sup or not sup.lyrics:
@@ -639,12 +661,20 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                         print(f'id: {lyrics.id} lang: {lyrics.text_language} '
                               f'show_translation: {lyrics.show_translation} url: {lyrics.url}\n')
                         print(lyrics.full_lyrics)
+
+                elif inp == 'm' or inp == 'more':
+                    show_attributes(track)
+
                 elif inp == 'x' or inp == 'exit':
                     raise KeyboardInterrupt()  # TODO: cancelation
+
+                elif len(inp) == 0:
+                    pass
+
                 else:
                     if inp != 'h' or inp != 'help':
                         print('Unknown command:', inp)
-                    print('s: skip\ni: id\np: pause\nt: text\nx: exit\nh: help')
+                    print('s: skip\ni: id\np: pause\nt: text\nm: more\nx: exit\nh: help')
 
                 inp_future = async_input.readline()
     finally:
