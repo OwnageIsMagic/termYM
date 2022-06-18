@@ -65,6 +65,8 @@ def handle_args() -> argparse.Namespace:
                         ' Указывайте конкретный тип для поиска')
     search.add_argument('--search-x', '-x', type=int, default=1, metavar='X',
                         help='use specific search result')
+    search.add_argument('--count', '-c', type=int, default=5, metavar='N',
+                        help='show %(metavar)s search results')
     search.add_argument('--search-no-correct', action='store_true',
                         help='no autocorrection for search')
 
@@ -188,7 +190,8 @@ def getTracksFromQueue() -> Tuple[int, List[TrackShort]]:
 
 
 def getSearchTracks(client: Client, playlist_name: str, search_type: str, search_x: int,
-                    search_no_correct: bool) -> Tuple[int, Union[List[Track], List[TrackShort]]]:
+                    search_no_correct: bool, count:int, show_id: bool
+                   ) -> Tuple[int, Union[List[Track], List[TrackShort]]]:
     if not playlist_name:
         print('Specify search term (playlist-name)')
         sys.exit(1)
@@ -206,7 +209,11 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         print(f'{cat.type}s: {cat.total} match(es)')
         cat_type = cat.type.replace('_', '-')
         for (i, r) in enumerate(cat.results):
-            print(f'{i + 1}.', end='')                                                     # TODO: maybe Protocol?
+            id = r.track_id if hasattr(r, 'track_id') else r.playlist_id if hasattr(       # type: ignore
+                r, 'playlist_id') else r.id                                                # type: ignore
+            sid = f' {id:<18}' if show_id else ''
+
+            print(f'{i + 1}.{sid}', end='')                                                # TODO: maybe Protocol?
             if hasattr(r, 'type') and r.type and r.type != 'music' and r.type != cat_type: # type: ignore
                 print(f' ({r.type})', end='')                                              # type: ignore
             if hasattr(r, 'artists_name') and r.artists:                                   # type: ignore
@@ -218,17 +225,17 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
                       for a in r.albums]) + ']', end='')                                   # type: ignore
             if hasattr(r, 'owner') and r.owner:                                            # type: ignore
                 print(f' {{{r.owner.login}}}', end='')                                     # type: ignore
-            if cat_type != 'podcast':
-                print(' ~ ', end='')
-            else:
+            if cat_type == 'podcast' or cat_type == 'artist':
                 print(' ', end='')
+            else:
+                print(' ~ ', end='')
             print(f'{(r.title if hasattr(r, "title") else r.name)}', end='')               # type: ignore
             if hasattr(r, 'version') and r.version and not r.version.isspace():            # type: ignore
                 print(f' @ {r.version}', end='')                                           # type: ignore
             if hasattr(r, 'duration_ms') and r.duration_ms:                                # type: ignore
                 print(' ' + duration_str(r.duration_ms), end='')                           # type: ignore
             print() # new line
-            if i >= 4: # 5 per category
+            if i >= count - 1:
                 break
 
     if search.best:  # search_type == 'all':
@@ -595,7 +602,7 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
 
     # exit_future = asyncio.Future(loop=loop)
     # proc, myprot = await loop.subprocess_exec(lambda: MyProtocol(exit_future), *player_cmd)
-    proc = await asyncio.create_subprocess_exec(*player_cmd)
+    proc = await asyncio.create_subprocess_exec(*player_cmd, stderr=asyncio.subprocess.DEVNULL)
     exit_future = asyncio.create_task(proc.wait())
     try:
         inp_future = async_input.readline()
@@ -714,7 +721,8 @@ def main() -> None:
 
     elif args.mode == 'search':
         total_tracks, tracks = getSearchTracks(
-            client, args.playlist_name, args.search_type, args.search_x, args.search_no_correct)
+            client, args.playlist_name, args.search_type, args.search_x, args.search_no_correct,
+            args.count, args.show_id)
 
     elif args.mode == 'auto':
         total_tracks, tracks = getAutoTracks(client, args.playlist_name, args.auto_type)
