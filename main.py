@@ -270,7 +270,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             volumes = res.volumes
 
         tracks = flatten(volumes)
-        total_tracks = res.track_count if res.track_count else len(tracks)
+        total_tracks = res.track_count or len(tracks)
 
         show_playing_album(res, total_tracks)
         show_album(volumes)
@@ -281,8 +281,8 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
 
     elif restype == 'playlist':
         res = cast(Playlist, res)
-        tracks = res.tracks if res.tracks else res.fetch_tracks()
-        total_tracks = res.track_count if res.track_count else len(tracks)
+        tracks = res.tracks or res.fetch_tracks()
+        total_tracks = res.track_count or len(tracks)
         show_playing_playlist(res, total_tracks)
 
     elif restype == 'user':  # TODO
@@ -323,6 +323,7 @@ def show_album(volumes: List[List[Track]]) -> None:
 
 
 def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tuple[int, List[TrackShort]]:
+    id = None
     if playlist_type == 'personal-playlists':
         # well-known names
         if playlist_name == 'playlistOfTheDay':
@@ -337,18 +338,14 @@ def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tup
             id = '460141773:108134812'
         elif playlist_name == 'kinopoisk':
             id = '1087766963:2441326'
-        else:
-            id = None
-    else:
-        id = None
 
     if id is not None:
         playlist = client.playlists_list(id)[0]
     else:
         playlist = show_and_search_auto_blocks(client, playlist_name, playlist_type)
 
-    tracks = playlist.tracks if playlist.tracks else playlist.fetch_tracks()
-    total_tracks = playlist.track_count if playlist.track_count else len(tracks)
+    tracks = playlist.tracks or playlist.fetch_tracks()
+    total_tracks = playlist.track_count or len(tracks)
     show_playing_playlist(playlist, total_tracks)
 
     return total_tracks, tracks
@@ -463,8 +460,8 @@ def getPlaylistTracks(client: Client, playlist_name: str) -> Tuple[int, List[Tra
         print(' Available:', list(p.title for p in user_playlists))
         sys.exit(1)
 
-    tracks = playlist.tracks if playlist.tracks else playlist.fetch_tracks()
-    total_tracks = playlist.track_count if playlist.track_count else len(tracks)
+    tracks = playlist.tracks or playlist.fetch_tracks()
+    total_tracks = playlist.track_count or len(tracks)
     show_playing_playlist(playlist, total_tracks)
 
     return total_tracks, tracks
@@ -526,13 +523,15 @@ def get_album_year(album: Album) -> int:
 
 def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
     artist = track.artists[0] if track.artists \
-        else SimpleNamespace(name='#_' + track.type if track.type else 'unknown', id=0)
+        else SimpleNamespace(id=0, name='#_' + (track.type or 'unknown'))
     album = track.albums[0] if track.albums \
         else SimpleNamespace(id=0, version=None, track_position=None, title='')
     album_version = f' ({album.version})' if album.version and not album.version.isspace() else ''
-    album_year = get_album_year(album) if not isinstance(album, SimpleNamespace) else 9999
-    if album_year == 9999:
+    if isinstance(album, SimpleNamespace):
         album_year = ''
+    else:
+        album_year = get_album_year(album)
+
     track_version = f' ({track.version})' if track.version and not track.version.isspace() else ''
     tp = album.track_position
     track_pos = f'{tp.volume}-{tp.index}' if tp else ''
@@ -558,7 +557,7 @@ def download_track(track: Track, cache_folder: Path, skip_long_path: bool) -> Op
         err = retry(lambda x: track.download(x), file_path)
         if err:
             print(f'Error while downloading track_id: {track.track_id}'
-            + f' real_id: {track.real_id}' if track.id != track.real_id else '')
+                + f' real_id: {track.real_id}' if track.id != track.real_id else '')
             return None
         print('ok')
     return file_path
@@ -663,7 +662,7 @@ def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
     if isinstance(track_or_short, Track):
         track = track_or_short
     else:
-        track = track_or_short.track if track_or_short.track else track_or_short.fetch_track()
+        track = track_or_short.track or track_or_short.fetch_track()
 
     if track.real_id and track.id != track.real_id:
         print(f'track.id ({track.id}) != track.real_id ({track.real_id})')
