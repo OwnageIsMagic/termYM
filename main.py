@@ -66,7 +66,7 @@ def handle_args() -> argparse.Namespace:
                         ' Указывайте конкретный тип для поиска')
     search.add_argument('--search-x', '-x', type=int, default=1, metavar='X',
                         help='use specific search result')
-    search.add_argument('--count', '-c', type=int, default=5, metavar='N',
+    search.add_argument('--search-count', type=int, default=5, metavar='N',
                         help='show %(metavar)s search results')
     search.add_argument('--search-no-correct', action='store_true',
                         help='no autocorrection for search')
@@ -75,7 +75,9 @@ def handle_args() -> argparse.Namespace:
                         help='only show tracks')
     parser.add_argument('--skip', '-s', metavar='N', type=int, default=0,
                         help='skip first %(metavar)s tracks')
-    parser.add_argument('--show-skiped', '-ss', action='store_true',
+    parser.add_argument('--count', '-c', metavar='N', type=int, default=0,
+                        help='take only first %(metavar)s tracks (after skipped)')
+    parser.add_argument('--show-skiped', action='store_true',
                         help='show skiped tracks')
     parser.add_argument('--shuffle', action='store_true',
                         help='randomize tracks order')
@@ -117,10 +119,6 @@ def handle_args() -> argparse.Namespace:
     args.player_cmd = args.audio_player_arg
     args.player_cmd.insert(0, args.audio_player)
     args.player_cmd.append('')  # will be replaced with filename
-
-    if args.list:
-        args.skip = sys.maxsize
-        args.show_skiped = True
 
     if args.mode == 'l':
         args.mode = 'likes'
@@ -204,15 +202,18 @@ def show_attributes(obj: Union[YandexMusicObject, List], ignored: Set[str] = {
     pprint(attributes(obj, ignored))
 
 
-def getTracksFromQueue() -> Tuple[int, List[TrackShort]]:
-    print('Not implemented')
+def getTracksFromQueue(client: Client) -> Tuple[int, List[TrackShort]]:
     # queue queues_list
+    queues = client.queues_list()
+    for q in queues:
+        show_attributes(q)
+    print('Not implemented')
     sys.exit(3)
     return 0, []
 
 
 def getSearchTracks(client: Client, playlist_name: str, search_type: str, search_x: int,
-                    search_no_correct: bool, count:int, show_id: bool
+                    search_no_correct: bool, search_count:int, show_id: bool
                    ) -> Tuple[int, Union[List[Track], List[TrackShort]]]:
     if not playlist_name:
         print('Specify search term (playlist-name)')
@@ -230,12 +231,12 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             continue
         print(f'{cat.type}s: {cat.total} match(es)')
         cat_type = cat.type.replace('_', '-')
-        for (i, r) in enumerate(cat.results, 1):
+        for (i, r) in enumerate(cat.results, 1):                                           # TODO: maybe Protocol?
             id = r.track_id if hasattr(r, 'track_id') else r.playlist_id if hasattr(       # type: ignore
                 r, 'playlist_id') else r.id                                                # type: ignore
             sid = f' {id:<18}' if show_id else ''
 
-            print(f'{i}.{sid}', end='')                                                # TODO: maybe Protocol?
+            print(f'{i}.{sid}', end='')
             if hasattr(r, 'type') and r.type and r.type != 'music' and r.type != cat_type: # type: ignore
                 print(f' ({r.type})', end='')                                              # type: ignore
             if hasattr(r, 'artists_name') and r.artists:                                   # type: ignore
@@ -257,7 +258,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             if hasattr(r, 'duration_ms') and r.duration_ms:                                # type: ignore
                 print(' ' + duration_str(r.duration_ms), end='')                           # type: ignore
             print() # new line
-            if i >= count:
+            if i >= search_count:
                 break
 
     if search.best:  # search_type == 'all':
@@ -739,7 +740,7 @@ def main() -> None:
         total_tracks, tracks = getPlaylistTracks(client, args.playlist_name)
 
     elif args.mode == 'likes':
-        tracks_list = client.users_likes_tracks()
+        tracks_list = client.users_likes_tracks()  # TODO: if_modified_since_revision
         assert tracks_list
         tracks = tracks_list.tracks
         total_tracks = len(tracks)
@@ -748,7 +749,7 @@ def main() -> None:
     elif args.mode == 'search':
         total_tracks, tracks = getSearchTracks(
             client, args.playlist_name, args.search_type, args.search_x, args.search_no_correct,
-            args.count, args.show_id)
+            args.search_count, args.show_id)
 
     elif args.mode == 'auto':
         total_tracks, tracks = getAutoTracks(client, args.playlist_name, args.auto_type)
@@ -760,8 +761,7 @@ def main() -> None:
         sys.exit(3)
 
     elif args.mode == 'queue':
-        # queue queues_list
-        total_tracks, tracks = getTracksFromQueue()
+        total_tracks, tracks = getTracksFromQueue(client)
 
     elif args.mode == 'id':
         if not args.playlist_name:
@@ -784,8 +784,8 @@ def main() -> None:
         print(','.join(t.track_id for t in tracks))
         return
 
-    if args.skip == sys.maxsize:  # no need for async runtime
-        skip_all_loop(args, client, total_tracks, tracks)
+    if args.list or args.skip >= sys.maxsize:  # no need for async runtime
+        skip_all_loop(args, client, total_tracks, tracks, args.skip, args.count)
         return
 
     asyncio.run(async_main(args, client, total_tracks, tracks))
@@ -819,14 +819,22 @@ async def main_loop(args: argparse.Namespace, client: Client,
               args.cache_folder, args.player_cmd, async_input,
               args.show_id, args.ignore_retcode, args.skip_long_path)
 
+        if args.count and args.skip + args.count <= i:
+            break
+
 
 def skip_all_loop(args: argparse.Namespace, client: Client,
-                  total_tracks: int, tracks: Union[List[TrackShort], List[Track]]) -> None:
+                  total_tracks: int, tracks: Union[List[TrackShort], List[Track]], skip: int, count: int) -> None:
     for (i, track_or_short) in enumerate(tracks, 1):
+        if skip >= i:
+            continue
         track = track_from_short(track_or_short)
         show_playing_track(i, total_tracks, track, args.show_id)
         if args.alice:
             show_alice_shot(client, track_or_short)
+
+        if count and skip + count <= i:
+            break
 
 
 def handle_exception(e: BaseException) -> None:
