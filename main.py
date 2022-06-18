@@ -10,7 +10,7 @@ from time import sleep
 from textwrap import indent
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Final, Optional, Tuple, TypeVar, Callable, Union, List, Dict, cast
+from typing import TYPE_CHECKING, Final, Optional, Tuple, TypeVar, Callable, Union, List, Dict, Set, cast
 
 # sys.path.append('~/source/pyt/yandex-music-api/')
 # import yandex_music
@@ -183,24 +183,25 @@ def flatten(inp: List[List[T]]) -> List[T]:
     return res
 
 
-def show_attributes(obj: Union[YandexMusicObject, List]) -> None:
-    from pprint import pprint
-
-    def attributes(obj: Union[YandexMusicObject, List], ignored = {
+def show_attributes(obj: Union[YandexMusicObject, List], ignored: Set[str] = {
             'available_for_mobile', 'available_for_premium_users', 'available',
             'client', 'cover_uri', 'cover', 'download_info', 'og_image', 'preview_duration_ms', 'storage_dir'
-        }, types = (YandexMusicObject, list)) -> Union[List, Dict]:
+        }) -> None:
+    from pprint import pprint
+
+    def attributes(obj: Union[YandexMusicObject, List], ignored: Set[str],
+            types: Tuple[type, ...] = (YandexMusicObject, list)) -> Union[List, Dict]:
 
         if isinstance(obj, list):
-            return [v if not isinstance(v, types) else attributes(v) for v in obj]
+            return [v if not isinstance(v, types) else attributes(v, ignored) for v in obj]
 
         return {
-            k: v if not isinstance(v, types) else attributes(v)
+            k: v if not isinstance(v, types) else attributes(v, ignored)
                 for k, v in vars(obj).items()
                     if k[0] != '_' and k not in ignored and v  # ignore falsy values
             }
 
-    pprint(attributes(obj))
+    pprint(attributes(obj, ignored))
 
 
 def getTracksFromQueue() -> Tuple[int, List[TrackShort]]:
@@ -690,6 +691,9 @@ def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
 
     if track.real_id and track.id != track.real_id:
         print(f'track.id ({track.id}) != track.real_id ({track.real_id})')
+
+    if track.meta_data:
+        show_attributes(track.meta_data, { 'client' })
 
     return track
 
