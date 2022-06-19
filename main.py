@@ -614,6 +614,7 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
     if file_path == None:
         return
 
+    liked = False
     player_cmd[-1] = str(file_path)
 
     # exit_future = asyncio.Future(loop=loop)
@@ -641,6 +642,13 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                 elif inp == 'p' or inp == 'pause':
                     print('pause after this track. Press Any key to continue...')
                     await async_input.readline()
+
+                elif inp == 'l' or inp == 'like':
+                    if liked or not track.like():
+                        print('already liked')
+                    else:
+                        print('liked')
+                    liked = True
 
                 elif inp == 't' or inp == 'text':
                     sup = track.get_supplement()
@@ -740,7 +748,7 @@ def main() -> None:
         total_tracks, tracks = getPlaylistTracks(client, args.playlist_name)
 
     elif args.mode == 'likes':
-        tracks_list = client.users_likes_tracks()  # TODO: if_modified_since_revision
+        tracks_list = client.users_likes_tracks()  # TODO: if_modified_since_revision tracks_list.revision
         assert tracks_list
         tracks = tracks_list.tracks
         total_tracks = len(tracks)

@@ -7,12 +7,13 @@ radio
 interactive player (pause track)
 color output
 alice audio
-likes
+batch likes
+show liked tracks (local storage, if_modified_since_revision)
 send playing status
 last.fm
 other places --show-id (album, playlist, ...)
 args from config
-more context commands (like, album, artist, time, ...)
+more context commands (album, artist, time, ...)
 --save-covers option
 playlist commands (show next N, skip N, prev, repeat, shuffle, export current playlist, ...)
 interactive mode (ncurses)
