@@ -181,6 +181,20 @@ def flatten(inp: list[list[T]]) -> list[T]:
     return res
 
 
+def try_int(value: str) -> Optional[int]:
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+# def try_int_or(value: str, default: T) -> Union[tuple[int, Literal[True]], tuple[T, Literal[False]]]:
+#     try:
+#         return int(value), True
+#     except ValueError:
+#         return default, False
+
+
 def show_attributes(obj: Union[YandexMusicObject, list], ignored: set[str] = {
             'available_for_mobile', 'available_for_premium_users', 'available',
             'client', 'cover_uri', 'cover', 'download_info', 'og_image', 'preview_duration_ms', 'storage_dir'
@@ -277,24 +291,42 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
 
     if restype == 'artist':
         # artists artists_tracks artists_direct_albums
-        artisttracks = cast(Artist, res).get_tracks()  # get_albums() popular_tracks
+        artist = cast(Artist, res)
+        print(artist.name, f'({artist.id})', artist.aliases or artist.db_aliases or '')
+        while True:
+            inp = input('[p]opular*/al[b]ums? ')
+            if not inp or inp == 'p' or inp == 'popular':
+                artisttracks = artist.get_tracks()  # popular_tracks
         assert artisttracks
         tracks = artisttracks.tracks
         total_tracks = len(tracks)
+                break
+
+            elif inp == 'b' or inp == 'albums':
+                artistalbums = artist.get_albums(page_size=250)
+                assert artistalbums and len(artistalbums.albums) != 250
+                albums = artistalbums.albums
+                for i, b in enumerate(albums, 1):
+                    print(f'{i:>2}.',
+                         (f'{b.id:<8} ' if show_id else '') +
+                         (f'({b.type}) ' if b.type else '') +
+                         (f'{b.title} @ {b.version}' if b.version else b.title or '???'),
+                         f'[{get_album_year(b)}]')
+
+                while True:
+                    ind = try_int(input('Which one? '))
+                    if ind is not None and 0 < ind <= len(albums):
+                        break
+                album = albums[ind - 1]
+
+                total_tracks, tracks = getAlbumTracks(album)
+
+                break
 
     elif restype == 'album' or restype == 'podcast':
         # albums albums_with_tracks
         res = cast(Album, res)
-        if not res.volumes:
-            res = res.with_tracks()
-            assert res and res.volumes
-        volumes = res.volumes
-
-        tracks = flatten(volumes)
-        total_tracks = res.track_count or len(tracks)
-
-        show_playing_album(res, total_tracks)
-        show_album(volumes)
+        total_tracks, tracks = getAlbumTracks(res)
 
     elif restype == 'track' or restype == 'podcast_episode':
         tracks = [cast(Track, res)]
@@ -321,6 +353,21 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         sys.exit(3)
 
     # tracks tracks_download_info
+
+    return total_tracks, tracks
+
+
+def getAlbumTracks(album: Album) -> tuple[int, list[Track]]:
+    if not album.volumes:
+        album = album.with_tracks()  # type: ignore
+        assert album and album.volumes
+    volumes = album.volumes
+
+    tracks = flatten(volumes)
+    total_tracks = album.track_count or len(tracks)
+
+    show_playing_album(album, total_tracks)
+    show_album(volumes)
 
     return total_tracks, tracks
 
