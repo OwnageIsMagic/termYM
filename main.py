@@ -10,7 +10,7 @@ from time import sleep
 from textwrap import indent
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Final, Optional, Tuple, TypeVar, Callable, Union, List, Dict, Set, cast
+from typing import TYPE_CHECKING, Final, Literal, Optional, TypeVar, Callable, Union, cast
 
 # sys.path.append('~/source/pyt/yandex-music-api/')
 # import yandex_music
@@ -174,21 +174,21 @@ def handle_args() -> argparse.Namespace:
     return args
 
 
-def flatten(inp: List[List[T]]) -> List[T]:
-    res: List[T] = []
+def flatten(inp: list[list[T]]) -> list[T]:
+    res: list[T] = []
     for l in inp:
         res.extend(l)
     return res
 
 
-def show_attributes(obj: Union[YandexMusicObject, List], ignored: Set[str] = {
+def show_attributes(obj: Union[YandexMusicObject, list], ignored: set[str] = {
             'available_for_mobile', 'available_for_premium_users', 'available',
             'client', 'cover_uri', 'cover', 'download_info', 'og_image', 'preview_duration_ms', 'storage_dir'
         }) -> None:
     from pprint import pprint
 
-    def attributes(obj: Union[YandexMusicObject, List], ignored: Set[str],
-            types: Tuple[type, ...] = (YandexMusicObject, list)) -> Union[List, Dict]:
+    def attributes(obj: Union[YandexMusicObject, list], ignored: set[str],
+            types: tuple[type, ...] = (YandexMusicObject, list)) -> Union[list, dict]:
 
         if isinstance(obj, list):
             return [v if not isinstance(v, types) else attributes(v, ignored) for v in obj]
@@ -202,7 +202,7 @@ def show_attributes(obj: Union[YandexMusicObject, List], ignored: Set[str] = {
     pprint(attributes(obj, ignored))
 
 
-def getTracksFromQueue(client: Client) -> Tuple[int, List[TrackShort]]:
+def getTracksFromQueue(client: Client) -> tuple[int, list[TrackShort]]:
     # queue queues_list
     queues = client.queues_list()
     for q in queues:
@@ -214,7 +214,7 @@ def getTracksFromQueue(client: Client) -> Tuple[int, List[TrackShort]]:
 
 def getSearchTracks(client: Client, playlist_name: str, search_type: str, search_x: int,
                     search_no_correct: bool, search_count:int, show_id: bool
-                   ) -> Tuple[int, Union[List[Track], List[TrackShort]]]:
+                   ) -> tuple[int, Union[list[Track], list[TrackShort]]]:
     if not playlist_name:
         print('Specify search term (playlist-name)')
         sys.exit(1)
@@ -334,7 +334,7 @@ def show_playing_album(a: Album, total_tracks: int) -> None:
         print(a.description)
 
 
-def show_album(volumes: List[List[Track]]) -> None:
+def show_album(volumes: list[list[Track]]) -> None:
     for (iv, volume) in enumerate(volumes, 1):
         print(f'vol {iv}.')
         for (i, track) in enumerate(volume, 1):
@@ -343,7 +343,7 @@ def show_album(volumes: List[List[Track]]) -> None:
                 duration_str(track.duration_ms))
 
 
-def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tuple[int, List[TrackShort]]:
+def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> tuple[int, list[TrackShort]]:
     id = None
     if playlist_type == 'personal-playlists':
         # well-known names
@@ -373,9 +373,9 @@ def getAutoTracks(client: Client, playlist_name: str, playlist_type: str) -> Tup
 
 
 def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_type: str) -> Playlist:
-    # new-releases: List[Album]
-    # new-playlists: List[Playlist]
-    # personal-playlists: List[GeneratedPlaylist]
+    # new-releases: list[Album]
+    # new-playlists: list[Playlist]
+    # personal-playlists: list[GeneratedPlaylist]
     # 'personal-playlists, new-releases, new-playlists'
     landings = client.landing(playlist_type)
     # landings = client.landing('personal-playlists')  # same as 'personalplaylists'
@@ -469,7 +469,7 @@ def duration_str(duration_ms: Optional[int]) -> str:
         return '-:--'
 
 
-def getPlaylistTracks(client: Client, playlist_name: str) -> Tuple[int, List[TrackShort]]:
+def getPlaylistTracks(client: Client, playlist_name: str) -> tuple[int, list[TrackShort]]:
     user_playlists = client.users_playlists_list()
 
     playlist = next((p for p in user_playlists if p.title == playlist_name), None) if playlist_name else None
@@ -605,7 +605,7 @@ class AsyncInput:
 
 
 async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShort],
-                    cache_folder: Path, player_cmd: List[str], async_input: AsyncInput,
+                    cache_folder: Path, player_cmd: list[str], async_input: AsyncInput,
                     show_id: bool, ignore_retcode: bool, skip_long_path: bool) -> None:
     track = track_from_short(track_or_short)
     show_playing_track(i, total_tracks, track, show_id)
@@ -800,7 +800,7 @@ def main() -> None:
 
 
 async def async_main(args: argparse.Namespace, client: Client,
-                    total_tracks: int, tracks: Union[List[TrackShort], List[Track]]) -> None:
+                    total_tracks: int, tracks: Union[list[TrackShort], list[Track]]) -> None:
     my_input = AsyncInput(asyncio.get_event_loop())
     try:
         return await main_loop(args, client, total_tracks, tracks, my_input)
@@ -811,7 +811,7 @@ async def async_main(args: argparse.Namespace, client: Client,
 
 
 async def main_loop(args: argparse.Namespace, client: Client,
-                    total_tracks: int, tracks: Union[List[TrackShort], List[Track]],
+                    total_tracks: int, tracks: Union[list[TrackShort], list[Track]],
                     async_input: AsyncInput) -> None:
     for (i, track_or_short) in enumerate(tracks, 1):
         if args.skip >= i:
@@ -832,7 +832,7 @@ async def main_loop(args: argparse.Namespace, client: Client,
 
 
 def skip_all_loop(args: argparse.Namespace, client: Client,
-                  total_tracks: int, tracks: Union[List[TrackShort], List[Track]], skip: int, count: int) -> None:
+                  total_tracks: int, tracks: Union[list[TrackShort], list[Track]], skip: int, count: int) -> None:
     for (i, track_or_short) in enumerate(tracks, 1):
         if skip >= i:
             continue
