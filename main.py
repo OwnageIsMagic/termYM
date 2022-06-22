@@ -71,6 +71,10 @@ def handle_args() -> argparse.Namespace:
     search.add_argument('--search-no-correct', action='store_true',
                         help='no autocorrection for search')
 
+    parser.add_argument('--batch-like', action='store_true',
+                        help='like all tracks in list')
+    parser.add_argument('--batch-remove-like', action='store_true',
+                        help='remove like from all tracks in list')
     parser.add_argument('--list', '-l', action='store_true',
                         help='only show tracks')
     parser.add_argument('--skip', '-s', metavar='N', type=int, default=0,
@@ -297,9 +301,9 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             inp = input('[p]opular*/al[b]ums? ')
             if not inp or inp == 'p' or inp == 'popular':
                 artisttracks = artist.get_tracks()  # popular_tracks
-        assert artisttracks
-        tracks = artisttracks.tracks
-        total_tracks = len(tracks)
+                assert artisttracks
+                tracks = artisttracks.tracks
+                total_tracks = len(tracks)
                 break
 
             elif inp == 'b' or inp == 'albums':
@@ -691,11 +695,14 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                     await async_input.readline()
 
                 elif inp == 'l' or inp == 'like':
-                    if liked or not track.like():
+                    if liked:
                         print('already liked')
                     else:
-                        print('liked')
-                    liked = True
+                        if track.like():
+                            print('liked')
+                            liked = True
+                        else:
+                            print('like error')
 
                 elif inp == 't' or inp == 'text':
                     sup = track.get_supplement()
@@ -838,6 +845,18 @@ def main() -> None:
     if args.export_list:
         print(','.join(t.track_id for t in tracks))
         return
+
+    if args.batch_remove_like:
+        if client.users_likes_tracks_remove([t.track_id for t in tracks]):
+            print('removed likes')
+        else:
+            print('error users_likes_tracks_remove')
+
+    if args.batch_like:
+        if client.users_likes_tracks_add([t.track_id for t in tracks]):
+            print('liked')
+        else:
+            print('error users_likes_tracks_add')
 
     if args.list or args.skip >= sys.maxsize:  # no need for async runtime
         skip_all_loop(args, client, total_tracks, tracks, args.skip, args.count)
