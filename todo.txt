@@ -15,7 +15,6 @@ translate text (amalgama, genius)
 other places --show-id (album, playlist, artist, owner (user), ...)
 args from config
 more context commands (album, artist, time, add to playlist, ...)
-YM link action
 --save-covers option
 playlist commands (show next N, skip N, prev, repeat, shuffle, export current playlist, ...)
 interactive mode (ncurses)

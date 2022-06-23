@@ -720,6 +720,10 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                               f'show_translation: {lyrics.show_translation} url: {lyrics.url}\n')
                         print(lyrics.full_lyrics)
 
+                elif inp == 'k' or inp == 'link':
+                    print(f'https://music.yandex.ru/album/{track.albums[0].id}/track/{track.id}')
+                    print(f'"{file_path}"')
+
                 elif inp == 'm' or inp == 'more':
                     show_attributes(track)
 
@@ -732,7 +736,7 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                 else:
                     if inp != 'h' or inp != 'help':
                         print('Unknown command:', inp)
-                    print('s: skip\ni: id\np: pause\nt: text\nm: more\nx: exit\nh: help')
+                    print('s: skip\ni: id\np: pause\nt: text\nk: link\nm: more\nx: exit\nh: help')
 
                 inp_future = async_input.readline()
     finally:
@@ -762,6 +766,7 @@ def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
 
 
 def show_playing_track(n: int, total_tracks: int, track: Track, show_id: bool) -> None:
+    # assert track.albums  # not available tracks doesn't have album: 4101273:4218688 Tilman Sillescu [] ~ No Escape
     track_type = f'({track.type}) ' if track.type and track.type != 'music' and track.type != 'podcast-episode' else ''
     track_id = f'{track.track_id:<18} ' if show_id else ''
     print(f'{n:>2}/{total_tracks}:',
