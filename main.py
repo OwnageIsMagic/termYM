@@ -577,13 +577,17 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Unio
             traceback.print_exc()
             error_count += 1
             sleep(3)
+            err = e
+            print('\nRETRYING', error_count)
         except Exception as e:
             # print(' Exception:', type(e).__name__, e, flush=True)
             traceback.print_exc()
             error_count += 1
             sleep(1)
+            print('\nRETRYING', error_count)
+            err = e
 
-    return e  # type: ignore
+    return err  # type: ignore
 
 
 def get_album_year(album: Album) -> int:
