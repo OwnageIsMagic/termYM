@@ -22,3 +22,9 @@ check 'error' and 'reason' fields
 id mode other types
 sleep timer
 likes archive
+just save to cache option
+local playing stats, stats sync
+cache stats (hit count, sizes)
+check cache is valid (is file, size != 0)
+split top level cache folder to subdirs (by prefix)
+cleanup cache (LRU, stats)

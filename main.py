@@ -81,8 +81,8 @@ def handle_args() -> argparse.Namespace:
                         help='skip first %(metavar)s tracks')
     parser.add_argument('--count', '-c', metavar='N', type=int, default=0,
                         help='take only first %(metavar)s tracks (after skipped)')
-    parser.add_argument('--show-skiped', action='store_true',
-                        help='show skiped tracks')
+    parser.add_argument('--show-skipped', action='store_true',
+                        help='show skipped tracks')
     parser.add_argument('--shuffle', action='store_true',
                         help='randomize tracks order')
     parser.add_argument('--reverse', '-r', action='store_true',
@@ -714,7 +714,8 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                         print(sup.description)
                     if not sup or not sup.lyrics:
                         print('no lyrics')
-                        assert not track.lyrics_available  # just check
+                        if track.lyrics_available:  # just check
+                            print(f'track.lyrics_available, but not sup or not sup.lyrics. sup:', sup)
                     else:
                         assert track.lyrics_available  # just check
                         lyrics = sup.lyrics
@@ -890,7 +891,7 @@ async def main_loop(args: argparse.Namespace, client: Client,
                     async_input: AsyncInput) -> None:
     for (i, track_or_short) in enumerate(tracks, 1):
         if args.skip >= i:
-            if args.show_skiped:
+            if args.show_skipped:
                 track = track_from_short(track_or_short)
                 show_playing_track(i, total_tracks, track, args.show_id)
             continue
