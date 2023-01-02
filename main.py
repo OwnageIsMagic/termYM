@@ -715,7 +715,7 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                     if not sup or not sup.lyrics:
                         print('no lyrics')
                         if track.lyrics_available:  # just check
-                            print(f'track.lyrics_available, but not sup or not sup.lyrics. sup:', sup)
+                            print(f'track.lyrics_available, but no sup or no sup.lyrics. sup:', sup)
                     else:
                         assert track.lyrics_available  # just check
                         lyrics = sup.lyrics
@@ -741,7 +741,7 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                 else:
                     if inp != 'h' or inp != 'help':
                         print('Unknown command:', inp)
-                    print('s: skip\ni: id\np: pause\nt: text\nk: link\nm: more\nx: exit\nh: help')
+                    print('s: skip\ni: id\np: pause\nl: like\nt: text\nk: link\nm: more\nx: exit\nh: help')
 
                 inp_future = async_input.readline()
     finally:
@@ -839,8 +839,47 @@ def main() -> None:
         if not args.playlist_name:
             print('Specify comma (",") separated track id list')
             sys.exit(1)
-        tracks = client.tracks([id for id in args.playlist_name.split(',') if len(id)])
-        total_tracks = len(tracks)
+        ids = [id for id in args.playlist_name.split(',') if len(id)]  # type: list[str]
+
+        d = { 't': list[str](), 'b': list[str](), 'p': list[str]() }
+
+        for id in ids:
+            prefix = id[0]
+            if prefix.isdigit():
+                d['t'].append(id)
+                continue
+            if prefix not in d:
+                raise Exception('Unknown prefix ' + prefix)
+            d[prefix].append(id[1:])
+
+        tracks = list[Union[Track, TrackShort]]()
+        total_tracks = 0
+
+        tracks_ids = d['t']
+        if tracks_ids:
+            tracks.extend(client.tracks(tracks_ids))  # type: ignore
+            total_tracks += len(tracks)
+
+        albums_ids = d['b']
+        if albums_ids:
+            for id in albums_ids:
+                album = client.albums_with_tracks(id)
+                assert album and album.volumes
+                album_tracks = flatten(album.volumes)
+                tracks.extend(album_tracks)
+                total_tracks += len(album_tracks)
+
+        playlist_ids = d['p']
+        if playlist_ids:
+            for id in playlist_ids:
+                if id.find(':'):
+                    ownerid, kind = id.split(':', 2)
+                else:
+                    ownerid, kind = None, id
+
+                playlist: Playlist = client.users_playlists(kind, ownerid)  # type: ignore
+                tracks.extend(playlist.tracks)
+                total_tracks += len(playlist.tracks)
 
     else:  # unreachable
         sys.exit(3)
@@ -876,7 +915,8 @@ def main() -> None:
 
 
 async def async_main(args: argparse.Namespace, client: Client,
-                    total_tracks: int, tracks: Union[list[TrackShort], list[Track]]) -> None:
+                     total_tracks: int, tracks: Union[list[TrackShort], list[Track], list[Union[Track, TrackShort]]]
+                    ) -> None:
     my_input = AsyncInput(asyncio.get_event_loop())
     try:
         return await main_loop(args, client, total_tracks, tracks, my_input)
@@ -887,7 +927,7 @@ async def async_main(args: argparse.Namespace, client: Client,
 
 
 async def main_loop(args: argparse.Namespace, client: Client,
-                    total_tracks: int, tracks: Union[list[TrackShort], list[Track]],
+                    total_tracks: int, tracks: Union[list[TrackShort], list[Track], list[Union[Track, TrackShort]]],
                     async_input: AsyncInput) -> None:
     for (i, track_or_short) in enumerate(tracks, 1):
         if args.skip >= i:
@@ -908,7 +948,8 @@ async def main_loop(args: argparse.Namespace, client: Client,
 
 
 def skip_all_loop(args: argparse.Namespace, client: Client,
-                  total_tracks: int, tracks: Union[list[TrackShort], list[Track]], skip: int, count: int) -> None:
+                  total_tracks: int, tracks: Union[list[TrackShort], list[Track], list[Union[Track, TrackShort]]],
+                  skip: int, count: int) -> None:
     for (i, track_or_short) in enumerate(tracks, 1):
         if skip >= i:
             continue
