@@ -28,3 +28,4 @@ cache stats (hit count, sizes)
 check cache is valid (is file, size != 0)
 split top level cache folder to subdirs (by prefix)
 cleanup cache (LRU, stats)
+artists decomposed
