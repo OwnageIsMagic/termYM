@@ -11,6 +11,7 @@ from textwrap import indent
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Final, Literal, Optional, TypeVar, Callable, Union, cast
+from no_ssl_ctx import no_ssl_verification
 
 # sys.path.append('~/source/pyt/yandex-music-api/')
 # import yandex_music
@@ -112,6 +113,8 @@ def handle_args() -> argparse.Namespace:
                         help='skip track if file path is over MAX_PATH. Default on Windows')
     parser.add_argument('--report-new-fields', action='store_true',
                         help='report new fields from API')
+    parser.add_argument('--ignore-ssl', action='store_true',
+                        help='ignore SSL errors')
     parser.add_argument('--print-args', action='store_true',
                         help='print arguments (including default values) and exit')
     args = parser.parse_args()
@@ -787,9 +790,7 @@ def show_playing_track(n: int, total_tracks: int, track: Track, show_id: bool) -
         print(track.short_description)
 
 
-def main() -> None:
-    args = handle_args()
-
+def main(args: argparse.Namespace) -> None:
     if args.log_api:
         import logging
         logging.basicConfig(level=logging.DEBUG,
@@ -976,7 +977,12 @@ def handle_exception(e: BaseException) -> None:
 
 if __name__ == '__main__':
     try:
-        main()
+        args = handle_args()
+        if args.ignore_ssl:
+            with no_ssl_verification():
+                main(args)
+        else:
+            main(args)
     except (KeyboardInterrupt, asyncio.exceptions.CancelledError):
         pass
     except Exception as e:
