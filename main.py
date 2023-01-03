@@ -167,6 +167,7 @@ def handle_args() -> argparse.Namespace:
 
     if type(args.token) is str and len(args.token) == 39 and re.match(r'^[A-Za-z0-9_]{39}$', args.token):
         if not args.no_save_token:
+            args.cache_folder.mkdir(parents=True, exist_ok=True)
             (args.cache_folder / CONFIG_FILE_NAME).write_text(args.token)
     else:
         try:
@@ -279,14 +280,16 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             if i >= search_count:
                 break
 
-    if search.best:  # search_type == 'all':
+    if search.best:  # 'all'
         res = search.best.result
         restype = search.best.type
         print(f'Best match: [{restype}]')
     else:
-        searchres: SearchResult = search[search_type + 's']
-        if searchres is None or len(searchres.results) == 0:
+        if search_type == 'all'\
+            or (searchres := search[search_type + 's']) is None\
+            or len(searchres.results) == 0:
             print(f'Nothing found for "{search.text}", type={search.type_}')
+            show_attributes(search)
             sys.exit(1)
 
         restype = searchres.type
@@ -300,16 +303,16 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         while True:
             inp = input('[p]opular*/al[b]ums? ')
             if not inp or inp == 'p' or inp == 'popular':
-                artisttracks = artist.get_tracks()  # popular_tracks
-                assert artisttracks
-                tracks = artisttracks.tracks
+                artist_tracks = artist.get_tracks()  # popular_tracks
+                assert artist_tracks
+                tracks = artist_tracks.tracks
                 total_tracks = len(tracks)
                 break
 
             elif inp == 'b' or inp == 'albums':
-                artistalbums = artist.get_albums(page_size=250)
-                assert artistalbums and len(artistalbums.albums) != 250
-                albums = artistalbums.albums
+                artist_albums = artist.get_albums(page_size=250)
+                assert artist_albums and len(artist_albums.albums) != 250
+                albums = artist_albums.albums
                 for i, b in enumerate(albums, 1):
                     print(f'{i:>2}.',
                          (f'{b.id:<8} ' if show_id else '') +
@@ -557,7 +560,7 @@ def slugify(value: str) -> str:
     value = value.strip()
     value = re.sub(r'\s+', ' ', value)  # collapse inner whitespace
     value = re.sub(r'^(\s*(?:CON|CONIN\$|CONOUT\$|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\s*(?:\..*)?)$',
-                   r'_\1', value, flags=re.IGNORECASE)  # common special names
+                   r'_\1', value, 1, flags=re.IGNORECASE)  # common special names
     return re.sub(r'[\x00-\x1F\x7F"*/:<>?|\\]', '_', value)  # reserved chars
 
 
