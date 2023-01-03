@@ -10,19 +10,18 @@ playlist commands (show next N, skip N, prev, repeat, shuffle, export current pl
 interactive mode (ncurses notcurses?)
 
 Backend:
+interactive player (pause track)
 user search
 video search
 getTracksFromQueue
 getAutoTracks other (chart, mix, promo, album, etc)
 radio
-interactive player (pause track)
 alice audio
 batch likes
 show liked tracks (local storage, if_modified_since_revision)
 likes over 10k limit
 backup likes
-send playing status (general webhook)
-last.fm
+send playing status (general webhook, last.fm)
 translate text (amalgama, genius)
 args from config
 --save-covers option
@@ -32,7 +31,6 @@ sleep timer
 just save to cache option (null player ?)
 local playing stats, stats sync
 cache stats (hit count, sizes)
-check cache is valid (is file, size != 0)
 split top level cache folder to subdirs (by prefix)
 cleanup cache (LRU, stats)
 artists decomposed

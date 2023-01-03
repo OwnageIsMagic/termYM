@@ -622,14 +622,17 @@ def get_cache_path_for_track(track: Track, cache_folder: Path) -> Path:
 
 def download_track(track: Track, cache_folder: Path, skip_long_path: bool) -> Optional[Path]:
     file_path = get_cache_path_for_track(track, cache_folder)
-    if skip_long_path and len(str(file_path)) > 255:
+    if skip_long_path and len(str(file_path)) >= 260:
         print('path is too long (MAX_PATH):', file_path)
         return None
     # vlc doesn't recognize \\?\ prefix :(
     # if (os.name == 'nt'):
     #     file_path = Path('\\\\?\\' + os.path.normpath(file_path))
     assert track.file_size is None or track.file_size == 0  # just check
-    if not file_path.exists():
+    fsize = 0
+    if not file_path.exists() or (fsize := file_path.stat().st_size) < 16:
+        if fsize > 0:
+            print(f'Overwriting {fsize} bytes ({file_path})')
         file_path.parent.mkdir(parents=True, exist_ok=True)
         print('Downloading...', end='', flush=True)  # flush before stderr in retry
         err = retry(lambda x: track.download(x), file_path)
