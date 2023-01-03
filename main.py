@@ -1,29 +1,28 @@
 #!/usr/bin/env python3
+import argparse
 import asyncio
 import os
-import sys
-import argparse
 import re
+import sys
 import traceback
 import unicodedata
-from time import sleep
-from textwrap import indent
+from json.decoder import JSONDecodeError
 from pathlib import Path
+from textwrap import indent
+from time import sleep
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Final, Literal, Optional, TypeVar, Callable, Union, cast
-from no_ssl_ctx import no_ssl_verification
+from typing import TYPE_CHECKING, Callable, Final, Literal, Optional, TypeVar, Union, cast
 
+# from radio import Radio
+from no_ssl_ctx import no_ssl_verification
 # sys.path.append('~/source/pyt/yandex-music-api/')
-# import yandex_music
+from yandex_music import Artist, Client, Playlist, SearchResult, Track, TrackShort
 from yandex_music.album.album import Album
 from yandex_music.base import YandexMusicObject
+from yandex_music.exceptions import Unauthorized as YMApiUnauthorized, YandexMusicError
 from yandex_music.feed.generated_playlist import GeneratedPlaylist
 from yandex_music.playlist.user import User
-from yandex_music import Client, TrackShort, SearchResult, Artist, Track, Playlist
 from yandex_music.video import Video
-from yandex_music.exceptions import Unauthorized as YMApiUnauthorized, YandexMusicError
-# from radio import Radio
-from json.decoder import JSONDecodeError
 
 T = TypeVar('T')
 if TYPE_CHECKING:
@@ -288,6 +287,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         restype = search.best.type
         print(f'Best match: [{restype}]')
     else:
+        searchres: SearchResult
         if search_type == 'all'\
             or (searchres := search[search_type + 's']) is None\
             or len(searchres.results) == 0:
