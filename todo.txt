@@ -1,28 +1,35 @@
+separate frontend/backend
+
+Console frontend:
+interactive search
+color output
+user format string for main output
+other places --show-id (album, playlist, artist, owner (user), ...)
+more context commands (album, artist, time, add to playlist, ...)
+playlist commands (show next N, skip N, prev, repeat, shuffle, export current playlist, ...)
+interactive mode (ncurses notcurses?)
+
+Backend:
 user search
 video search
-interactive search
 getTracksFromQueue
 getAutoTracks other (chart, mix, promo, album, etc)
 radio
 interactive player (pause track)
-color output
 alice audio
 batch likes
 show liked tracks (local storage, if_modified_since_revision)
-send playing status
+likes over 10k limit
+backup likes
+send playing status (general webhook)
 last.fm
 translate text (amalgama, genius)
-other places --show-id (album, playlist, artist, owner (user), ...)
 args from config
-more context commands (album, artist, time, add to playlist, ...)
 --save-covers option
-playlist commands (show next N, skip N, prev, repeat, shuffle, export current playlist, ...)
-interactive mode (ncurses)
 check 'error' and 'reason' fields
 id mode other types
 sleep timer
-likes archive
-just save to cache option
+just save to cache option (null player ?)
 local playing stats, stats sync
 cache stats (hit count, sizes)
 check cache is valid (is file, size != 0)
@@ -31,4 +38,3 @@ cleanup cache (LRU, stats)
 artists decomposed
 download artist
 --save-to with user format string
-user format string for main output
