@@ -19,7 +19,7 @@ from no_ssl_ctx import no_ssl_verification
 from yandex_music import Artist, Client, Playlist, SearchResult, Track, TrackShort
 from yandex_music.album.album import Album
 from yandex_music.base import YandexMusicObject
-from yandex_music.exceptions import Unauthorized as YMApiUnauthorized, YandexMusicError
+from yandex_music.exceptions import NetworkError as YMNetworkError, Unauthorized as YMApiUnauthorized, YandexMusicError
 from yandex_music.feed.generated_playlist import GeneratedPlaylist
 from yandex_music.playlist.user import User
 from yandex_music.video import Video
@@ -567,33 +567,47 @@ def slugify(value: str) -> str:
     return re.sub(r'[\x00-\x1F\x7F"*/:<>?|\\]', '_', value)  # reserved chars
 
 
+def get_exception_root(exception: BaseException) -> BaseException:
+    while exception.__context__:
+        exception = exception.__context__
+    return exception
+
+
 def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Union[T, Exception]:
     error_count = 0
     while error_count < MAX_ERRORS:
         try:
+            err = None
+            if error_count > 0:
+                print('\nRETRYING', error_count)
             return func(*args, **kwargs)
+        except YMNetworkError as e:
+            error_count += 1
+            err = e
+            if error_count == 1:
+                print(f' {type(e).__name__} {get_exception_root(e)} ', end='')
+            else:
+                traceback.print_exc()
+                sleep(3)
         except YMApiUnauthorized as e:
-            print(' ', type(e), e)
+            print(' ', type(e).__name__, e)
             return e
         except YandexMusicError as e:
             # print(' YandexMusicError:', type(e).__name__, e, flush=True)
-            if e.__context__ is JSONDecodeError:
-                json_err = cast(JSONDecodeError, e.__context__)
-                print(f' JSONDecodeError.doc: "{json_err.doc}"', flush=True)
-            traceback.print_exc()
+            if isinstance(e.__context__, JSONDecodeError):
+                print(f' JSONDecodeError.doc: "{cast(JSONDecodeError, e.__context__).doc}"', flush=True)
             error_count += 1
-            sleep(3)
             err = e
-            print('\nRETRYING', error_count)
+            traceback.print_exc()
+            sleep(3)
         except Exception as e:
             # print(' Exception:', type(e).__name__, e, flush=True)
-            traceback.print_exc()
             error_count += 1
-            sleep(1)
-            print('\nRETRYING', error_count)
             err = e
+            traceback.print_exc()
+            sleep(1)
 
-    return err  # type: ignore
+    return err
 
 
 def get_album_year(album: Album) -> int:
