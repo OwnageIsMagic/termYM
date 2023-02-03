@@ -309,7 +309,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         artist = cast(Artist, res)
         print(artist.name, f'({artist.id})', artist.aliases or '', artist.db_aliases or '')
         while True:
-            inp = input('[p]opular*/al[b]ums? ')
+            inp = input('[p]opular*/al[b]ums/[i]nfo/du[m]p? ')
             if not inp or inp == 'p' or inp == 'popular':
                 artist_tracks = artist.get_tracks()  # popular_tracks
                 assert artist_tracks
@@ -336,6 +336,15 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
                 album = albums[ind - 1]
                 total_tracks, tracks = getAlbumTracks(album)
                 break
+
+            elif inp == 'i' or inp == 'info':
+                brief = client.artists_brief_info(artist.id)
+                show_attributes(brief)
+                continue
+
+            elif inp == 'm' or inp == 'dump':
+                show_attributes(artist)
+                continue
 
     elif restype == 'album' or restype == 'podcast':
         # albums albums_with_tracks
@@ -753,10 +762,11 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                         print(lyrics.full_lyrics)
 
                 elif inp == 'k' or inp == 'link':
-                    print(f'https://music.yandex.ru/album/{track.albums[0].id}/track/{track.id}')
+                    al = f'/album/{track.albums[0].id}' if track.albums else ''
+                    print(f'https://music.yandex.ru{al}/track/{track.id}')
                     print(f'"{file_path}"')
 
-                elif inp == 'm' or inp == 'more':
+                elif inp == 'm' or inp == 'dump':
                     show_attributes(track)
 
                 elif inp == 'x' or inp == 'exit':
@@ -768,7 +778,7 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
                 else:
                     if inp != 'h' or inp != 'help':
                         print('Unknown command:', inp)
-                    print('s: skip\ni: id\np: pause\nl: like\nt: text\nk: link\nm: more\nx: exit\nh: help')
+                    print('s: skip\ni: id\np: pause\nl: like\nt: text\nk: link\nm: dump\nx: exit\nh: help')
 
                 inp_future = async_input.readline()
     finally:
