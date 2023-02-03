@@ -206,6 +206,9 @@ def show_attributes(obj: Union[YandexMusicObject, list], ignored: set[str] = {
             'available_for_mobile', 'available_for_premium_users', 'available',
             'client', 'cover_uri', 'cover', 'download_info', 'og_image', 'preview_duration_ms', 'storage_dir'
         }) -> None:
+    if obj is None:
+        print('None')
+        return
     from pprint import pprint
 
     def attributes(obj: Union[YandexMusicObject, list], ignored: set[str],
@@ -253,9 +256,11 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         print(f'{cat.type}s: {cat.total} match(es)')
         cat_type = cat.type.replace('_', '-')
         for (i, r) in enumerate(cat.results, 1):                                           # TODO: maybe Protocol?
-            id = r.track_id if hasattr(r, 'track_id') else r.playlist_id if hasattr(       # type: ignore
-                r, 'playlist_id') else r.id                                                # type: ignore
-            sid = f' {id:<18}' if show_id else ''
+            if show_id:
+                id = r.track_id if hasattr(r, 'track_id') else r.playlist_id if hasattr(   # type: ignore
+                    r, 'playlist_id') else r.id                                            # type: ignore
+                sid = f' {id:<18}'
+            else: sid = ''
 
             print(f'{i}.{sid}', end='')
             if hasattr(r, 'type') and r.type and r.type != 'music' and r.type != cat_type: # type: ignore
@@ -302,7 +307,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
     if restype == 'artist':
         # artists artists_tracks artists_direct_albums
         artist = cast(Artist, res)
-        print(artist.name, f'({artist.id})', artist.aliases or artist.db_aliases or '')
+        print(artist.name, f'({artist.id})', artist.aliases or '', artist.db_aliases or '')
         while True:
             inp = input('[p]opular*/al[b]ums? ')
             if not inp or inp == 'p' or inp == 'popular':
@@ -314,7 +319,8 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
 
             elif inp == 'b' or inp == 'albums':
                 artist_albums = artist.get_albums(page_size=250)
-                assert artist_albums and len(artist_albums.albums) != 250
+                assert artist_albums
+                assert len(artist_albums.albums) != 250  # just in case
                 albums = artist_albums.albums
                 for i, b in enumerate(albums, 1):
                     print(f'{i:>2}.',
@@ -328,9 +334,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
                     if ind is not None and 0 < ind <= len(albums):
                         break
                 album = albums[ind - 1]
-
                 total_tracks, tracks = getAlbumTracks(album)
-
                 break
 
     elif restype == 'album' or restype == 'podcast':
