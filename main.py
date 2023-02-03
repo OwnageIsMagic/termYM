@@ -592,15 +592,17 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Unio
         try:
             err = None
             if error_count > 0:
-                print('\nRETRYING', error_count)
+                print('RETRYING', error_count)
             return func(*args, **kwargs)
         except YMNetworkError as e:
             error_count += 1
             err = e
             if error_count == 1:
-                print(f' {type(e).__name__} {get_exception_root(e)} ', end='')
+                print(f' {type(e).__name__} {get_exception_root(e)} '
+                    if 'SSL' not in type(e.__context__).__name__ else ' SSL ', end='')
             else:
                 traceback.print_exc()
+                print()  # new line
                 sleep(3)
         except YMApiUnauthorized as e:
             print(' ', type(e).__name__, e)
@@ -612,12 +614,14 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Unio
             error_count += 1
             err = e
             traceback.print_exc()
+            print()  # new line
             sleep(3)
         except Exception as e:
             # print(' Exception:', type(e).__name__, e, flush=True)
             error_count += 1
             err = e
             traceback.print_exc()
+            print()  # new line
             sleep(1)
 
     return err
@@ -1004,6 +1008,7 @@ def handle_exception(e: BaseException) -> None:
     print()  # new line
     # print('Exception:', type(e).__name__, e, flush=True)
     traceback.print_exc()
+    print()  # new line
 
 
 if __name__ == '__main__':
