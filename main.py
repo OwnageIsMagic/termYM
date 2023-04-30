@@ -309,7 +309,7 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         artist = cast(Artist, res)
         print(artist.name, f'({artist.id})', artist.aliases or '', artist.db_aliases or '')
         while True:
-            inp = input('[p]opular*/al[b]ums/[i]nfo/du[m]p? ')
+            inp = input('[p]opular*/[a]ll/al[b]ums/[i]nfo/du[m]p? ')
             if not inp or inp == 'p' or inp == 'popular':
                 artist_tracks = artist.get_tracks()  # popular_tracks
                 assert artist_tracks
@@ -335,6 +335,13 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
                         break
                 album = albums[ind - 1]
                 total_tracks, tracks = getAlbumTracks(album)
+                break
+
+            elif inp == 'a' or inp == 'all':
+                artist_tracks = artist.get_tracks(0, 250)  # TODO
+                assert artist_tracks
+                tracks = artist_tracks.tracks
+                total_tracks = len(tracks)
                 break
 
             elif inp == 'i' or inp == 'info':
