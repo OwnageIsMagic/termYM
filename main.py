@@ -11,7 +11,7 @@ from pathlib import Path
 from textwrap import indent
 from time import sleep
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Callable, Final, Literal, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Callable, Final, Optional, TypeVar, Union, cast
 
 # from radio import Radio
 from no_ssl_ctx import no_ssl_verification
@@ -202,7 +202,7 @@ def try_int(value: str) -> Optional[int]:
 #         return default, False
 
 
-def show_attributes(obj: Union[YandexMusicObject, list], ignored: set[str] = {
+def show_attributes(obj: Union[YandexMusicObject, list, None], ignored: set[str] = {
             'available_for_mobile', 'available_for_premium_users', 'available',
             'client', 'cover_uri', 'cover', 'download_info', 'og_image', 'preview_duration_ms', 'storage_dir'
         }) -> None:
@@ -631,7 +631,7 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Unio
             print()  # new line
             sleep(1)
 
-    return err
+    return err  # type: ignore
 
 
 def get_album_year(album: Album) -> int:
