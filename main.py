@@ -524,10 +524,10 @@ def show_playing_playlist(playlist: Playlist, total_tracks: int) -> None:
     if playlist.description:
         print(playlist.description)
 
-    if playlist.generated_playlist_type == 'playlistOfTheDay':
-        assert playlist.play_counter
-        print(f'Playlist of the day streak: {playlist.play_counter.value}. '
-              f'Updated: {playlist.play_counter.updated}')
+    # if playlist.generated_playlist_type == 'playlistOfTheDay':
+    #     assert playlist.play_counter
+    #     print(f'Playlist of the day streak: {playlist.play_counter.value}. '
+    #           f'Updated: {playlist.play_counter.updated}')
 
 
 def plural(count: int) -> str:
@@ -1012,6 +1012,8 @@ def handle_exception(e: BaseException) -> None:
     print('Error:', type(e).__name__, f'"{e}"', flush=True)
     print('Cause:', type(e.__cause__).__name__, f'"{e.__cause__}"', flush=True)        # type: ignore
     print('Context:', type(e.__context__).__name__, f'"{e.__context__}"', flush=True)  # type: ignore
+    if isinstance(e.__context__, JSONDecodeError):
+        print(f' JSONDecodeError.doc: "{cast(JSONDecodeError, e.__context__).doc}"', flush=True)
     print()  # new line
     # print('Exception:', type(e).__name__, e, flush=True)
     traceback.print_exc()
