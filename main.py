@@ -809,7 +809,7 @@ def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
     else:
         track = track_or_short.track or track_or_short.fetch_track()
 
-    if track.real_id and (track.id != track.real_id or int(track.id) != int(track.real_id)):
+    if track.real_id and (track.id != track.real_id and int(track.id) != int(track.real_id)):
         print(f'track.id ({track.id}) != track.real_id ({track.real_id})')
 
     if track.meta_data:
