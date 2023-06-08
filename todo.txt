@@ -33,7 +33,21 @@ local playing stats, stats sync
 cache stats (hit count, sizes)
 split top level cache folder to subdirs (by prefix)
 cleanup cache (LRU, stats)
-artists decomposed
+artists {'decomposed': [' feat. ', {'id': 6033906, 'name': 'Стереополина'}] // 104892084
+        {'composer': True, 'id': 11818, 'name': 'Hans Zimmer'}              // 101718194
 download artist
 --save-to with user format string
 track substituted (37610893 - 104764497)
+
+Error: YandexMusicError "Invalid server response" Context: JSONDecodeError "Expecting value: line 1 column 1 (char 0)" JSONDecodeError.doc: "limited"
+Error: YandexMusicError "Invalid server response"
+Cause: NoneType "None"
+Context: JSONDecodeError "Expecting value: line 1 column 1 (char 0)"
+ JSONDecodeError.doc: "<html>
+<head><title>502 Bad Gateway</title></head>
+<body>
+<center><h1>502 Bad Gateway</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+"
