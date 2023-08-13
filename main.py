@@ -255,6 +255,13 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         print(f'{cat.type}s: {cat.total} match(es)')
         cat_type = cat.type.replace('_', '-')
         for (i, r) in enumerate(cat.results, 1):                                           # TODO: maybe Protocol?
+            if isinstance(r, Artist):
+                w = 18 if show_id else 8
+                print(f'{i}. {r.id:<{w}} {r.name}', end='')
+                if r.genres: print(f' [{", ".join(r.genres)}]')
+                else: print()
+                continue
+
             if show_id:
                 id = r.track_id if hasattr(r, 'track_id') else r.playlist_id if hasattr(   # type: ignore
                     r, 'playlist_id') else r.id                                            # type: ignore
@@ -280,6 +287,8 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
             print(f'{(r.title if hasattr(r, "title") else r.name)}', end='')               # type: ignore
             if hasattr(r, 'version') and r.version and not r.version.isspace():            # type: ignore
                 print(f' @ {r.version}', end='')                                           # type: ignore
+            if isinstance(r, Album):
+                print(f' [{get_album_year(r)}]', end='')
             if hasattr(r, 'duration_ms') and r.duration_ms:                                # type: ignore
                 print(' ' + duration_str(r.duration_ms), end='')                           # type: ignore
             print() # new line
@@ -402,7 +411,7 @@ def getAlbumTracks(album: Album) -> tuple[int, list[Track]]:
 
 
 def show_playing_album(a: Album, total_tracks: int) -> None:
-    print(f'Playing {a.title} ({a.id}) by {"|".join(a.artists_name())}.'
+    print(f'Playing {a.title} ({a.id}) by {"|".join([f"{i.name} ({i.id})" for i in a.artists])}.'
           f' {total_tracks} track{plural(total_tracks)} {duration_str(a.duration_ms)}.')
     if a.short_description:
         print(a.short_description)
