@@ -14,7 +14,6 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Callable, Final, Optional, TypeVar, Union, cast
 
 # from radio import Radio
-from no_ssl_ctx import no_ssl_verification
 # sys.path.append('~/source/pyt/yandex-music-api/')
 from yandex_music import Artist, Client, Playlist, SearchResult, Track, TrackShort
 from yandex_music.album.album import Album
@@ -1024,6 +1023,7 @@ if __name__ == '__main__':
     try:
         args = handle_args()
         if args.ignore_ssl:
+            from no_ssl_ctx import no_ssl_verification
             with no_ssl_verification():
                 main(args)
         else:
