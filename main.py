@@ -37,13 +37,6 @@ def handle_args() -> argparse.Namespace:
     DEFAULT_CACHE_FOLDER = Path(__file__).resolve().parent / '.YMcache'
     CONFIG_FILE_NAME = 'config'
 
-    class BooleanAction(argparse.Action):
-        def __init__(self, option_strings, dest, nargs=None, **kwargs):
-            super(BooleanAction, self).__init__(option_strings, dest, nargs=0, **kwargs)
-
-        def __call__(self, parser, namespace, values, option_string=None):
-            setattr(namespace, self.dest, False if option_string.startswith('--no-') else True)  # type: ignore
-
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices={'likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
                                          'radio', 'r', 'queue', 'q', 'id'},
@@ -107,11 +100,9 @@ def handle_args() -> argparse.Namespace:
                         help='player to use')
     parser.add_argument('--audio-player-arg', action='append', default=[],
                         help='args for --audio-player (can be specified multiple times)')
-    parser.add_argument('--ignore-retcode', '--no-ignore-retcode', dest='ignore_retcode', action=BooleanAction,
-                        default=os.name == 'nt',
+    parser.add_argument('--ignore-retcode', action=argparse.BooleanOptionalAction, default=os.name == 'nt',
                         help='ignore audio player return code. Default on Windows')
-    parser.add_argument('--skip-long-path', '--no-skip-long-path', dest='skip_long_path', action=BooleanAction,
-                        default=os.name == 'nt',
+    parser.add_argument('--skip-long-path', action=argparse.BooleanOptionalAction, default=os.name == 'nt',
                         help='skip track if file path is over MAX_PATH. Default on Windows')
     parser.add_argument('--report-new-fields', action='store_true',
                         help='report new fields from API')
