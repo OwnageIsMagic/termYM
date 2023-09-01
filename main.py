@@ -56,7 +56,7 @@ def handle_args() -> argparse.Namespace:
                         default='personal-playlists',
                         help='type of auto playlist. Default: %(default)r')
     auto__.add_argument('--no-alice', dest='alice', action='store_false',
-                        help='don\'t show Alice shots')
+                        help='do not show Alice shots')
 
     search = parser.add_argument_group('search')
     search.add_argument('--search-type', '-t', choices={'all', 'artist', 'a', 'user', 'u', 'album', 'b',
@@ -118,7 +118,7 @@ def handle_args() -> argparse.Namespace:
     parser.add_argument('--ignore-ssl', action='store_true',
                         help='ignore SSL errors')
     parser.add_argument('--print-args', action='store_true',
-                        help='print arguments (including default values) and exit')
+                        help='print arguments (with resolved default values) and exit')
     args = parser.parse_args()
 
     if args.audio_player is parser.get_default('audio_player') \
@@ -170,7 +170,7 @@ def handle_args() -> argparse.Namespace:
         print(args)
         sys.exit()
 
-    if type(args.token) is str and len(args.token) == 39 and re.match(r'^[A-Za-z0-9_]{39}$', args.token):
+    if type(args.token) is str and len(args.token) == 39 and re.match(r'^\w{39}$', args.token, re.ASCII):
         if not args.no_save_token:
             args.cache_folder.mkdir(parents=True, exist_ok=True)
             (args.cache_folder / CONFIG_FILE_NAME).write_text(args.token)
@@ -232,6 +232,7 @@ def show_attributes(obj: Union[YandexMusicObject, list, None], ignored: set[str]
 def getTracksFromQueue(client: Client) -> tuple[int, list[TrackShort]]:
     # queue queues_list
     queues = client.queues_list()
+    print(len(queues), 'queues')
     for q in queues:
         show_attributes(q)
     print('Not implemented')
@@ -676,7 +677,7 @@ def download_track(track: Track, cache_folder: Path, skip_long_path: bool) -> Op
         print('path is too long (MAX_PATH):', file_path)
         return None
     # vlc doesn't recognize \\?\ prefix :(
-    # if (os.name == 'nt'):
+    # if os.name == 'nt':
     #     file_path = Path('\\\\?\\' + os.path.normpath(file_path))
     assert track.file_size is None or track.file_size == 0  # just check
     fsize = 0
@@ -725,7 +726,7 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
     show_playing_track(i, total_tracks, track, show_id)
 
     file_path = download_track(track, cache_folder, skip_long_path)
-    if file_path == None:
+    if file_path is None:
         return None
 
     liked = False

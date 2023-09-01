@@ -4,7 +4,7 @@ from typing import Union
 from yandex_music import Client, Track
 from yandex_music.rotor.station_tracks_result import StationTracksResult
 
-
+# based on https://github.com/MarshalX/yandex-music-api/blob/main/examples/radio_example/radio.py
 class Radio:
     __slots__ = ('client', 'play_id' ,'station_id' ,'station_from' ,'index' ,'current_track' ,'station_tracks')
 
