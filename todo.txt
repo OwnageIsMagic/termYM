@@ -39,6 +39,7 @@ download artist
 --save-to with user format string
 track substituted (37610893 - 104764497)
 
+1998_Солнцеклёш_4050958 vs 1998_Солнцеклеш_4050958
 Error: YandexMusicError "Invalid server response" Context: JSONDecodeError "Expecting value: line 1 column 1 (char 0)" JSONDecodeError.doc: "limited"
 Error: YandexMusicError "Invalid server response"
 Cause: NoneType "None"
