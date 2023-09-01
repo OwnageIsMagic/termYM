@@ -38,22 +38,24 @@ def handle_args() -> argparse.Namespace:
     CONFIG_FILE_NAME = 'config'
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices={'likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
-                                         'radio', 'r', 'queue', 'q', 'id'},
+    parser.add_argument('mode', choices=('likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
+                                         'radio', 'r', 'queue', 'q', 'id'),
                         help='operation mode')
     parser.add_argument('playlist_name', nargs='?',
                         help='name of playlist or search term')
 
     auto__ = parser.add_argument_group('auto')
-    auto__.add_argument('--auto-type', '-tt', choices={'personal-playlists', 'new-playlists', 'new-releases'},
+    auto__.add_argument('--auto-type', '-tt', choices=('personal-playlists', 'personalplaylists', 'promotions',
+                                                       'new-releases', 'new-playlists', 'mixes', 'chart',
+                                                       'artists', 'albums', 'playlists', 'play-contexts'),
                         default='personal-playlists',
                         help='type of auto playlist. Default: %(default)r')
     auto__.add_argument('--no-alice', dest='alice', action='store_false',
                         help='do not show Alice shots')
 
     search = parser.add_argument_group('search')
-    search.add_argument('--search-type', '-t', choices={'all', 'artist', 'a', 'user', 'u', 'album', 'b',
-                        'playlist', 'p', 'track', 't', 'podcast', 'c', 'podcast_episode', 'ce', 'video', 'v'},
+    search.add_argument('--search-type', '-t', choices=('all', 'artist', 'a', 'user', 'u', 'album', 'b',
+                        'playlist', 'p', 'track', 't', 'podcast', 'c', 'podcast_episode', 'ce', 'video', 'v'),
                         default='all',
                         help='type of search. Default: %(default)r'
                         ' При поиске type=all не возвращаются подкасты и эпизоды.'
@@ -489,8 +491,28 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
             elif e.type == 'playlist':
                 pl = cast(Playlist, e.data)
             else:
+                if e.type == 'album':
+                    al = cast(Album, e.data)
+                    print(e.type)
+                    show_playing_album(al, al.track_count or 0)
+                else:
+                    # TODO
+                    # if e.type == 'promotion':
+                    #     from yandex_music.landing.promotion import Promotion
+                    #     promo = cast(Promotion, e.data)
+                    # elif e.type == 'chart-item':
+                    #     from yandex_music.landing.chart_item import ChartItem
+                    #     chart = cast(ChartItem, e.data)
+                    # elif e.type == 'mix-link':
+                    #     from yandex_music.landing.mix_link import MixLink
+                    #     mix = cast(MixLink, e.data)
+                    # elif e.type == 'play-context':
+                    #     from yandex_music.landing.play_context import PlayContext
+                    #     pc = cast(PlayContext, e.data)
+                    print(e.type)
+                    show_attributes(e)
                 print('Not implemented')
-                sys.exit(3)
+                continue
 
             assert not pl.type and not pl.playlist_uuid  # just check
             assert not pl.dummy_description and not pl.dummy_page_description
