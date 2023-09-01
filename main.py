@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import asyncio
+from datetime import datetime
 import os
+from random import random
 import re
 import sys
 import traceback
@@ -70,6 +72,8 @@ def handle_args() -> argparse.Namespace:
     search.add_argument('--search-no-correct', action='store_true',
                         help='no autocorrection for search')
 
+    parser.add_argument('--no-send-status', dest='send_status', action='store_false',
+                        help='do not send playing status')
     parser.add_argument('--batch-like', action='store_true',
                         help='like all tracks in list')
     parser.add_argument('--batch-remove-like', action='store_true',
@@ -716,13 +720,13 @@ class AsyncInput:
 
 async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, TrackShort],
                     cache_folder: Path, player_cmd: list[str], async_input: AsyncInput,
-                    show_id: bool, ignore_retcode: bool, skip_long_path: bool) -> None:
+                    show_id: bool, ignore_retcode: bool, skip_long_path: bool) -> Optional[Track]:
     track = track_from_short(track_or_short)
     show_playing_track(i, total_tracks, track, show_id)
 
     file_path = download_track(track, cache_folder, skip_long_path)
     if file_path == None:
-        return
+        return None
 
     liked = False
     player_cmd[-1] = str(file_path)
@@ -810,6 +814,8 @@ async def play_track(i: int, total_tracks: int, track_or_short: Union[Track, Tra
             if rc:
                 raise Exception(f'Command {player_cmd} returned non-zero exit status {rc}.')
 
+    return track
+
 
 def track_from_short(track_or_short: Union[Track, TrackShort]) -> Track:
     if isinstance(track_or_short, Track):
@@ -838,6 +844,10 @@ def show_playing_track(n: int, total_tracks: int, track: Track, show_id: bool) -
           duration_str(track.duration_ms))
     if track.short_description:
         print(track.short_description)
+
+
+def generate_play_id() -> str:
+    return f"{int(random() * 1000)}-{int(random() * 1000)}-{int(random() * 1000)}"
 
 
 def main(args: argparse.Namespace) -> None:
@@ -993,9 +1003,20 @@ async def main_loop(args: argparse.Namespace, client: Client,
         if args.alice:
             show_alice_shot(client, track_or_short)
 
-        await play_track(i, total_tracks, track_or_short,
+        track = await play_track(i, total_tracks, track_or_short,
               args.cache_folder, args.player_cmd, async_input,
               args.show_id, args.ignore_retcode, args.skip_long_path)
+
+        if args.send_status and track:
+            now = f'{datetime.now().isoformat()}Z'
+            played_seconds = (track.duration_ms or 0) // 1000
+            ret = client.play_audio(track.id, "termYM", track.albums[0].id or 0 if track.albums else 0,
+                              track_length_seconds=played_seconds,
+                              end_position_seconds=played_seconds,
+                              total_played_seconds=played_seconds,
+                              #   playlist_id,
+                              play_id=generate_play_id(), timestamp=now, client_now=now)
+            assert ret
 
         if args.count and args.skip + args.count <= i:
             break
