@@ -15,15 +15,12 @@ from time import sleep
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Callable, Final, Optional, TypeVar, Union, cast
 
-# from radio import Radio
 # sys.path.append('~/source/pyt/yandex-music-api/')
 from yandex_music import Artist, Client, Playlist, SearchResult, Track, TrackShort
 from yandex_music.album.album import Album
 from yandex_music.base import YandexMusicObject
 from yandex_music.exceptions import NetworkError as YMNetworkError, Unauthorized as YMApiUnauthorized, YandexMusicError
 from yandex_music.feed.generated_playlist import GeneratedPlaylist
-from yandex_music.playlist.user import User
-from yandex_music.video import Video
 
 T = TypeVar('T')
 if TYPE_CHECKING:
@@ -375,17 +372,22 @@ def getSearchTracks(client: Client, playlist_name: str, search_type: str, search
         show_playing_playlist(res, total_tracks)
 
     elif restype == 'user':  # TODO
-        res = cast(User, res)
-        print('Not implemented', res)
+        # from yandex_music.playlist.user import User
+        # res = cast(User, res)
+        show_attributes(res)
+        print('Not implemented')
         sys.exit(3)
 
     elif restype == 'video':  # TODO
-        res = cast(Video, res)
-        print('Not implemented', res)
+        # from yandex_music.video import Video
+        # res = cast(Video, res)
+        show_attributes(res)
+        print('Not implemented')
         sys.exit(3)
 
     else:  # unreachable
-        print('Not implemented', res)
+        show_attributes(res)
+        print('Not implemented')
         sys.exit(3)
 
     # tracks tracks_download_info
@@ -905,9 +907,10 @@ def main(args: argparse.Namespace) -> None:
         total_tracks, tracks = getAutoTracks(client, args.playlist_name, args.auto_type)
 
     elif args.mode == 'radio':
-        print('Not implemented')
-        # TODO: use examples\Radio
+        # from radio import Radio
+        # radio = Radio(client)
         # rotor_stations_dashboard rotor_stations_list rotor_station_tracks
+        print('Not implemented')
         sys.exit(3)
 
     elif args.mode == 'queue':
