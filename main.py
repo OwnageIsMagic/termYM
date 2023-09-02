@@ -25,9 +25,6 @@ if TYPE_CHECKING:
     from yandex_music.rotor.station_result import StationResult
 
 T = TypeVar('T')
-if TYPE_CHECKING:
-    from typing_extensions import ParamSpec
-    P = ParamSpec('P')
 
 MAX_ERRORS: Final = 3
 
@@ -712,14 +709,12 @@ def get_exception_root(exception: BaseException) -> BaseException:
     return exception
 
 
-def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Union[T, Exception]:
+def retry(func: Callable[[], T]) -> Union[T, Exception]:
     error_count = 0
     while error_count < MAX_ERRORS:
         try:
             err = None
-            if error_count > 0:
-                print('RETRYING', error_count)
-            return func(*args, **kwargs)
+            return func()
         except YMNetworkError as e:
             error_count += 1
             err = e
@@ -749,6 +744,8 @@ def retry(func: 'Callable[P, T]', *args: 'P.args', **kwargs: 'P.kwargs') -> Unio
             traceback.print_exc()
             print()  # new line
             sleep(1)
+
+        print('RETRYING', error_count)
 
     return err  # type: ignore
 
@@ -786,18 +783,21 @@ def download_track(track: Track, cache_folder: Path, skip_long_path: bool) -> Op
     # if os.name == 'nt':
     #     file_path = Path('\\\\?\\' + os.path.normpath(file_path))
     assert track.file_size is None or track.file_size == 0  # just check
-    fsize = 0
-    if not file_path.exists() or (fsize := file_path.stat().st_size) < 16:
-        if fsize > 0:
-            print(f'Overwriting {fsize} bytes ({file_path})')
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        print('Downloading...', end='', flush=True)  # flush before stderr in retry
-        err = retry(lambda x: track.download(x), file_path)
-        if err:
-            print(f'Error while downloading track_id: {track.track_id}'
-                + f' real_id: {track.real_id}' if track.id != track.real_id else '')
-            return None
-        print('ok')
+    if file_path.exists():
+        return file_path
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    print('Downloading...', end='', flush=True)  # flush before stderr in retry
+    file_path_tmp = file_path.parent / file_path.stem
+    err = retry(lambda: track.download(str(file_path_tmp)))
+    if err:
+        print(f'Error while downloading track_id: {track.track_id}'
+            + f' real_id: {track.real_id}' if track.id != track.real_id else '')
+        file_path_tmp.unlink(True)
+        return None
+
+    file_path_tmp.rename(file_path)
+    print('ok')
     return file_path
 
 
