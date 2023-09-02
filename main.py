@@ -38,7 +38,7 @@ def handle_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('likes', 'l', 'playlist', 'p', 'search', 's', 'auto', 'a',
-                                         'radio', 'r', 'queue', 'q', 'id'),
+                                         'radio', 'r', 'queue', 'q', 'feed', 'f', 'id'),
                         help='operation mode')
     parser.add_argument('playlist_name', nargs='?',
                         help='name of playlist or search term')
@@ -133,6 +133,8 @@ def handle_args() -> argparse.Namespace:
         args.mode = 'radio'
     elif args.mode == 'q':
         args.mode = 'queue'
+    elif args.mode == 'f':
+        args.mode = 'feed'
 
     if args.search_type == 'a':
         args.search_type = 'artist'
@@ -230,6 +232,57 @@ def getTracksFromQueue(client: Client) -> tuple[int, list[TrackShort]]:
     print('Not implemented')
     sys.exit(3)
     return 0, []
+
+
+def getTracksFromFeed(client: Client) -> tuple[int, list[Track]]:
+    feed = client.feed()
+    assert feed
+    show_attributes(feed, {'client', 'generated_playlists', 'days'})
+
+    for gp in feed.generated_playlists:
+        assert gp.data
+        if gp.type not in {'playlistOfTheDay', 'origin', 'neverHeard', 'recentTracks', 'missedLikes', 'kinopoisk'}:
+            pl = gp.data
+            assert pl.owner
+            print(f'{gp.type} {pl.title} ({pl.playlist_id}) {pl.owner.login} {pl.track_count} tracks')
+
+    assert len(feed.days) == 1
+    day = feed.days[0]
+    print('Events:')
+    for ev in day.events:
+        assert not ev.message
+        assert not ev.device
+        assert not ev.genre
+        assert not ev.tracks_count
+
+        print(ev.type_for_from, ev.title)
+        if ev.type == 'tracks':
+            total = len(ev.tracks)
+            print(f'    {total} track{plural(total)}')
+
+        elif ev.type == 'artists':
+            for ae in ev.artists:
+                assert ae.artist
+                total = len(ae.tracks)
+                print(f'    {ae.artist.name} ({ae.artist.id}){" subscribed" if ae.subscribed else ""}'
+                      f'    {total} track{plural(total)}', end='')
+                if ae.similar_to_artists_from_history:
+                    print(' similar to:',
+                          ', '.join(f'{a.name or "???"} ({a.id})' for a in ae.similar_to_artists_from_history))
+                else: print()
+
+        elif ev.type == 'albums':
+            for ae in ev.albums:
+                assert ae.album
+                al = ae.album
+                total = len(ae.tracks)
+                print(f'    {al.title} ({al.id}) by {al.artists_name()} {total} track{plural(total)}')
+
+    assert len(day.tracks_to_play) == len(day.tracks_to_play_with_ads)
+    # for i, t in enumerate(day.tracks_to_play):
+    #     assert t.track_id == day.tracks_to_play_with_ads[i].track.track_id  # type: ignore
+
+    return len(day.tracks_to_play), day.tracks_to_play
 
 
 def getSearchTracks(client: Client, playlist_name: str, search_type: str, search_x: int,
@@ -926,6 +979,9 @@ def main(args: argparse.Namespace) -> None:
 
     elif args.mode == 'queue':
         total_tracks, tracks = getTracksFromQueue(client)
+
+    elif args.mode == 'feed':
+        total_tracks, tracks = getTracksFromFeed(client)
 
     elif args.mode == 'id':
         if not args.playlist_name:
