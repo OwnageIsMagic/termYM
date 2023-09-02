@@ -569,14 +569,33 @@ def show_and_search_auto_blocks(client: Client, playlist_name: str, playlist_typ
                     al = cast(Album, e.data)
                     print(e.type)
                     show_playing_album(al, al.track_count or 0)
+                elif e.type == 'chart-item':
+                    from yandex_music.landing.chart_item import ChartItem
+                    chart_item = cast(ChartItem, e.data)
+                    assert chart_item.chart
+                    assert chart_item.track
+                    chart, track = chart_item.chart, chart_item.track
+
+                    if chart.progress == 'same':
+                        icon = '🔲'
+                    elif chart.progress == 'down':
+                        icon = '🔻'
+                    elif chart.progress == 'up':
+                        icon = '🔺'
+                    elif chart.progress == 'new':
+                        icon = '🆕'
+                    else: assert False
+                    print(icon, f'({chart.shift})', '|'.join(track.artists_name()),
+                            f"[{'|'.join((a.title or str(a.id)) if not a.version else f'{a.title} @ {a.version}' for a in track.albums)}]",
+                            '~',
+                            track.title if not track.version else f'{track.title} @ {track.version}')
+                    assert not chart.listeners
+
                 else:
                     # TODO
                     # if e.type == 'promotion':
                     #     from yandex_music.landing.promotion import Promotion
                     #     promo = cast(Promotion, e.data)
-                    # elif e.type == 'chart-item':
-                    #     from yandex_music.landing.chart_item import ChartItem
-                    #     chart = cast(ChartItem, e.data)
                     # elif e.type == 'mix-link':
                     #     from yandex_music.landing.mix_link import MixLink
                     #     mix = cast(MixLink, e.data)
