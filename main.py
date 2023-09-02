@@ -21,6 +21,8 @@ from yandex_music.album.album import Album
 from yandex_music.base import YandexMusicObject
 from yandex_music.exceptions import NetworkError as YMNetworkError, Unauthorized as YMApiUnauthorized, YandexMusicError
 from yandex_music.feed.generated_playlist import GeneratedPlaylist
+if TYPE_CHECKING:
+    from yandex_music.rotor.station_result import StationResult
 
 T = TypeVar('T')
 if TYPE_CHECKING:
@@ -907,9 +909,18 @@ def main(args: argparse.Namespace) -> None:
         total_tracks, tracks = getAutoTracks(client, args.playlist_name, args.auto_type)
 
     elif args.mode == 'radio':
+        if args.playlist_name is None or args.playlist_name == 'd' or args.playlist_name == 'dashboard':
+            dashboard = client.rotor_stations_dashboard()
+            assert dashboard
+            for sr in dashboard.stations:
+                show_station_result(sr)
+        elif args.playlist_name == 's' or args.playlist_name == 'stations':
+            stations = client.rotor_stations_list()
+            for sr in stations:
+                show_station_result(sr)
         # from radio import Radio
         # radio = Radio(client)
-        # rotor_stations_dashboard rotor_stations_list rotor_station_tracks
+        # rotor_account_status rotor_station_tracks rotor_station_feedback
         print('Not implemented')
         sys.exit(3)
 
@@ -993,6 +1004,27 @@ def main(args: argparse.Namespace) -> None:
         return
 
     asyncio.run(async_main(args, client, total_tracks, tracks))
+
+
+def show_station_result(sr: 'StationResult'):
+    assert sr.station
+    s = sr.station
+    assert s.id
+    print(s.name, f'{s.id.type}:{s.id.tag}' + (f'->{s.parent_id.type}:{s.parent_id.tag}' if s.parent_id else ''),
+          f'({s.id_for_from})', end='')
+
+    assert sr.settings and sr.settings2, sr
+    sg, sg2 = sr.settings, sr.settings2
+    print(f' lang={sg.language} diversity={sg.diversity} energy={sg.energy} mood={sg2.mood_energy}({sg.mood})', end='')
+    print(f' {sr.explanation}')
+    assert sg.language == sg2.language
+    assert sg.diversity == sg2.diversity
+    assert sg.mood_energy is None
+    assert sg2.energy is None
+    assert sg2.mood is None
+    if sr.prerolls:
+        for p in sr.prerolls:
+            show_attributes(p)
 
 
 async def async_main(args: argparse.Namespace, client: Client,
