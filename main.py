@@ -227,11 +227,28 @@ def getTracksFromQueue(client: Client) -> tuple[int, list[TrackShort]]:
     # queue queues_list
     queues = client.queues_list()
     print(len(queues), 'queues')
-    for q in queues:
-        show_attributes(q)
-    print('Not implemented')
-    sys.exit(3)
-    return 0, []
+    if not args.playlist_name:
+        for qi in queues: show_attributes(qi)
+        sys.exit(1)
+    name_icase: str = args.playlist_name.casefold()
+    for qi in queues:
+        assert qi.context
+        assert qi.context.description
+        if name_icase in qi.context.description.casefold():
+            break
+    else:
+        for qi in queues: show_attributes(qi)
+        sys.exit(1)
+
+    queue = qi.fetch_queue()
+    assert queue
+    assert queue.context
+    print(f'{queue.id} ({queue.context.type}) {queue.context.description} {queue.context.id} {queue.modified}')
+    assert queue.id == qi.id  # just check
+    assert queue.modified == qi.modified
+    return (len(queue.tracks),
+        [TrackShort(t.track_id or t.id or 0, '', str(t.album_id), client=client)
+            for t in queue.tracks[queue.current_index:]])
 
 
 def getTracksFromFeed(client: Client) -> tuple[int, list[Track]]:
