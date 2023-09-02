@@ -1,4 +1,4 @@
-separate frontend/backend
+separate frontend/backend/playback
 
 Console frontend:
 interactive search
@@ -30,6 +30,8 @@ id mode other types
 sleep timer
 just save to cache option (null player ?)
 local playing stats, stats sync
+add IDv3 tags
+cache metadata, resolve id from cache
 cache stats (hit count, sizes)
 split top level cache folder to subdirs (by prefix)
 cleanup cache (LRU, stats)
