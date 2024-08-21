@@ -300,7 +300,7 @@ def getTracksFromFeed(client: Client) -> tuple[int, list[Track]]:
 
 
 def getSearchTracks(client: Client, playlist_name: str, search_type: str, search_x: int,
-                    search_no_correct: bool, search_count:int, show_id: bool
+                    search_no_correct: bool, search_count: int, show_id: bool
                    ) -> tuple[int, Union[list[Track], list[TrackShort]]]:
     if not playlist_name:
         print('Specify search term (playlist-name)')
